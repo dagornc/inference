@@ -1,0 +1,336 @@
+# =============================================================================
+# PYPROJECT.TOML - INFERENCE PROJECT (RAG ULTIME 2025)
+# =============================================================================
+# Configuration unifiée selon PEP 621 et standards GEMINI.
+#
+# CONFORMITÉ :
+# - PEP 621 : Project metadata
+# - PEP 484 : Type hints (mypy strict)
+# - PEP 257 : Docstrings (Google style)
+# - PEP 8 : Code style (via ruff)
+#
+# OUTILS :
+# - ruff : formatter + linter (remplace black + flake8)
+# - mypy : vérification typage statique
+# - pytest : tests unitaires
+# - hypothesis : property-based testing
+# =============================================================================
+
+[project]
+name = "inference_project"
+version = "1.0.0"
+description = "Pipeline RAG ultime 2025 : Query Expansion, Retrieval Hybride Triple, Reranking Multi-Étages, Compression Contextuelle, Génération, Évaluation"
+readme = "README.md"
+requires-python = ">=3.9"
+license = {text = "MIT"}
+authors = [
+    {name = "Your Name", email = "your.email@example.com"}
+]
+keywords = [
+    "rag",
+    "retrieval-augmented-generation",
+    "nlp",
+    "llm",
+    "information-retrieval",
+    "reranking",
+    "embeddings",
+]
+classifiers = [
+    "Development Status :: 4 - Beta",
+    "Intended Audience :: Developers",
+    "License :: OSI Approved :: MIT License",
+    "Programming Language :: Python :: 3",
+    "Programming Language :: Python :: 3.9",
+    "Programming Language :: Python :: 3.10",
+    "Programming Language :: Python :: 3.11",
+    "Programming Language :: Python :: 3.12",
+    "Topic :: Scientific/Engineering :: Artificial Intelligence",
+]
+
+# =============================================================================
+# DÉPENDANCES PRINCIPALES (PRODUCTION)
+# =============================================================================
+dependencies = [
+    # --- Core ---
+    "pydantic>=2.0",              # Validation de configuration
+    "pyyaml>=6.0",                # Parsing fichiers YAML
+    "python-dotenv>=1.0.0",       # Chargement variables d'environnement
+
+    # --- LLM & APIs ---
+    "openai>=1.0.0",              # OpenAI API (GPT-4, embeddings)
+    "anthropic>=0.7.0",           # Anthropic Claude API
+    "fastapi>=0.100.0",           # Web API framework
+    "uvicorn>=0.20.0",            # ASGI server
+
+    # --- Embeddings & Retrieval ---
+    "sentence-transformers>=2.3.0",  # BGE-M3, bge-reranker-v2-m3
+    "transformers>=4.35.0",       # Hugging Face models
+    "torch>=2.0.0",               # PyTorch (backend sentence-transformers)
+    "faiss-cpu>=1.7.4",           # Vector similarity search (CPU)
+    # "faiss-gpu>=1.7.4",         # Alternative GPU (commenter si pas de GPU)
+
+    # --- Vector Stores ---
+    "chromadb>=0.4.0",            # ChromaDB vector store
+    "qdrant-client>=1.6.0",       # Qdrant vector store
+
+    # --- Sparse Retrieval (BM25) ---
+    "rank-bm25>=0.2.2",           # BM25 lightweight
+    "pyserini>=0.22.0",           # BM25 optimisé (wrapper Lucene)
+
+    # --- Late Interaction (ColBERT) ---
+    "ragatouille>=0.0.7",         # ColBERT wrapper simplifié
+
+    # --- Orchestration RAG ---
+    "langchain>=0.1.0",           # Framework orchestration RAG
+    "langchain-community>=0.0.10",  # Intégrations communautaires
+    "langchain-openai>=0.0.2",    # Intégration OpenAI pour LangChain
+    "dspy-ai>=2.0.0",             # DSPy framework (optimisation prompts)
+    # "llama-index>=0.9.0",       # Alternative à LangChain (optionnel)
+
+    # --- Compression Contextuelle ---
+    "llmlingua>=0.2.0",           # Compression intelligente
+
+    # --- Évaluation ---
+    "ragas>=0.1.0",               # Métriques RAG (faithfulness, relevancy)
+    "trulens-eval>=0.25.0",       # Observabilité complète
+    "datasets>=2.14.0",           # Hugging Face datasets pour évaluation
+
+    # --- Utilities ---
+    "numpy>=1.24.0",              # Calculs numériques
+    "tiktoken>=0.5.0",            # Token counting (OpenAI)
+    "tqdm>=4.65.0",               # Progress bars
+    "cleanlab>=2.5.0",            # Confidence scoring & data quality
+]
+
+# =============================================================================
+# DÉPENDANCES DE DÉVELOPPEMENT
+# =============================================================================
+[project.optional-dependencies]
+dev = [
+    # --- Formatage & Linting ---
+    "ruff>=0.4.0",                # Formatter + linter ultra-rapide
+
+    # --- Typage statique ---
+    "mypy>=1.5.0",                # Vérification types
+    "types-pyyaml",               # Type stubs pour PyYAML
+    "types-requests",             # Type stubs pour requests
+
+    # --- Tests ---
+    "pytest>=8.0.0",              # Framework de tests
+    "pytest-cov>=4.1.0",          # Couverture de code
+    "pytest-asyncio>=0.21.0",     # Tests async
+    "hypothesis>=6.82.0",         # Property-based testing
+
+    # --- Documentation ---
+    "pdoc>=14.0.0",               # Génération documentation API
+    # "sphinx>=7.0.0",            # Alternative documentation (optionnel)
+
+    # --- Pre-commit hooks ---
+    "pre-commit>=3.3.0",          # Git hooks automatiques
+]
+
+# =============================================================================
+# SCRIPTS EXECUTABLES
+# =============================================================================
+# Note : Pour générer la documentation, utiliser directement : pdoc src/inference_project
+# [project.scripts]
+# Les scripts entrypoints doivent pointer vers des fonctions Python, pas des commandes shell
+
+# =============================================================================
+# CONFIGURATION BUILD SYSTEM
+# =============================================================================
+[build-system]
+requires = ["setuptools>=68.0", "wheel"]
+build-backend = "setuptools.build_meta"
+
+[tool.setuptools]
+package-dir = {"" = "src"}
+
+[tool.setuptools.packages.find]
+where = ["src"]
+include = ["inference_project*"]
+exclude = ["tests*"]
+
+# =============================================================================
+# CONFIGURATION RUFF (Formatter + Linter)
+# =============================================================================
+# Ruff remplace Black (formatter) + Flake8 (linter) + isort (imports)
+# Documentation : https://docs.astral.sh/ruff/
+[tool.ruff]
+# Longueur de ligne (standard Black)
+line-length = 88
+
+# Version Python cible
+target-version = "py39"
+
+# Fichiers/dossiers à exclure
+exclude = [
+    ".git",
+    ".venv",
+    "venv",
+    "__pycache__",
+    ".pytest_cache",
+    ".mypy_cache",
+    ".ruff_cache",
+    "build",
+    "dist",
+    "*.egg-info",
+]
+
+# =============================================================================
+# RÈGLES RUFF (Linting)
+# =============================================================================
+[tool.ruff.lint]
+# Règles activées (voir https://docs.astral.sh/ruff/rules/)
+select = [
+    "E",      # pycodestyle errors
+    "W",      # pycodestyle warnings
+    "F",      # pyflakes
+    "I",      # isort (tri des imports)
+    "N",      # pep8-naming
+    "UP",     # pyupgrade (modernisation syntax)
+    "B",      # flake8-bugbear (bugs communs)
+    "C4",     # flake8-comprehensions
+    "SIM",    # flake8-simplify
+    "RUF",    # ruff-specific rules
+]
+
+# Règles ignorées (ajuster selon besoins)
+ignore = [
+    "E501",   # Line too long (géré par formatter)
+    "B008",   # Function calls in argument defaults
+]
+
+# Règles à corriger automatiquement avec --fix
+fixable = ["ALL"]
+unfixable = []
+
+# =============================================================================
+# CONFIGURATION FORMATAGE RUFF
+# =============================================================================
+[tool.ruff.format]
+# Style de quotes : "double" ou "single"
+quote-style = "double"
+
+# Indentation : "tab" ou "space"
+indent-style = "space"
+
+# Trailing commas
+skip-magic-trailing-comma = false
+
+# Fin de ligne : "auto", "lf", "crlf"
+line-ending = "auto"
+
+# =============================================================================
+# CONFIGURATION MYPY (Typage statique)
+# =============================================================================
+[tool.mypy]
+# Mode strict (recommandé GEMINI)
+strict = true
+
+# Chemins des sources
+mypy_path = "src"
+
+# Ignorer fichiers sans type hints
+warn_unused_ignores = true
+warn_redundant_casts = true
+warn_unused_configs = true
+
+# Gestion imports tiers sans stubs
+ignore_missing_imports = true
+
+# Désactiver strict pour tests (optionnel)
+[[tool.mypy.overrides]]
+module = "tests.*"
+disallow_untyped_defs = false
+
+# =============================================================================
+# CONFIGURATION PYTEST
+# =============================================================================
+[tool.pytest.ini_options]
+# Version minimale
+minversion = "6.0"
+
+# Options par défaut
+addopts = [
+    "-ra",                    # Afficher résumé de tous les tests
+    "-q",                     # Mode quiet (moins verbose)
+    "--strict-markers",       # Erreur si marker inconnu
+    "--tb=short",             # Traceback courts
+    "--cov=src/inference_project",  # Couverture de code
+    "--cov-report=term-missing",    # Afficher lignes non couvertes
+    "--cov-report=html:htmlcov",    # Rapport HTML
+]
+
+# Répertoires de tests
+testpaths = ["tests"]
+
+# Markers personnalisés
+markers = [
+    "slow: marks tests as slow (deselect with '-m \"not slow\"')",
+    "integration: marks integration tests",
+    "unit: marks unit tests",
+]
+
+# Fichiers de configuration à utiliser
+pythonpath = ["src"]
+
+# =============================================================================
+# CONFIGURATION COVERAGE
+# =============================================================================
+[tool.coverage.run]
+source = ["src/inference_project"]
+omit = [
+    "*/tests/*",
+    "*/__pycache__/*",
+    "*/site-packages/*",
+]
+
+[tool.coverage.report]
+# Seuil minimum de couverture (fail si < 80%)
+# fail_under = 80
+
+# Exclure du rapport
+exclude_lines = [
+    "pragma: no cover",
+    "def __repr__",
+    "raise AssertionError",
+    "raise NotImplementedError",
+    "if __name__ == .__main__.:",
+    "if TYPE_CHECKING:",
+    "class .*\\bProtocol\\):",
+    "@(abc\\.)?abstractmethod",
+]
+
+# =============================================================================
+# NOTES D'UTILISATION
+# =============================================================================
+# Installation :
+#   pip install -e .                    # Mode développement
+#   pip install -e ".[dev]"             # Avec dépendances dev
+#
+# Formatage :
+#   ruff format .                       # Formater tout le code
+#   ruff format --check .               # Vérifier sans modifier
+#
+# Linting :
+#   ruff check .                        # Linter tout le code
+#   ruff check --fix .                  # Corriger automatiquement
+#
+# Typage :
+#   mypy src/                           # Vérifier typage
+#
+# Tests :
+#   pytest                              # Lancer tous les tests
+#   pytest -v                           # Mode verbose
+#   pytest tests/test_steps.py          # Test spécifique
+#   pytest -m "not slow"                # Exclure tests lents
+#
+# Couverture :
+#   pytest --cov                        # Tests avec couverture
+#   open htmlcov/index.html             # Voir rapport HTML
+#
+# Pre-commit :
+#   pre-commit install                  # Installer hooks
+#   pre-commit run --all-files          # Lancer manuellement
+# =============================================================================

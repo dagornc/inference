@@ -1,0 +1,196 @@
+# =============================================================================
+# ÉTAPE 02 : RETRIEVAL HYBRIDE TRIPLE (RAG ULTIME 2025)
+# =============================================================================
+# Architecture de retrieval combinant 3 approches complémentaires pour une
+# couverture maximale et une pertinence optimale.
+#
+# ARCHITECTURE :
+# 1. Dense Retrieval : embeddings sémantiques (BGE-M3)
+# 2. Sparse Retrieval : keyword matching (BM25)
+# 3. Late Interaction : token-level matching (ColBERTv2)
+# 4. Fusion : combinaison intelligente des résultats (RRF/Weighted Sum)
+#
+# AVANTAGES :
+# - Dense : excellente compréhension sémantique
+# - Sparse : parfait pour noms propres, codes, identifiants
+# - Late : meilleur pour contextes longs et reasoning
+# - Fusion : +40% qualité vs retrieval simple
+#
+# PERFORMANCE GLOBALE :
+# - Top-K global : 100 documents après fusion
+# - Latence totale : 150-300ms
+# - Déduplication : élimination doublons >95% similarité
+# =============================================================================
+
+retrieval:
+  hybrid:
+    # -------------------------------------------------------------------------
+    # 2.1 DENSE RETRIEVAL (Semantic Embeddings)
+    # -------------------------------------------------------------------------
+    # Utilise des embeddings vectoriels pour la recherche sémantique.
+    # Excellent pour : synonymes, paraphrases, concepts similaires
+    #
+    # MODÈLE : BGE-M3 (SOTA 2025)
+    # - Dimensions : 1024
+    # - Multilingue natif (100+ langues)
+    # - Quantization : compression 6-10× avec binary/scalar
+    # -------------------------------------------------------------------------
+    dense_retrieval:
+      # Nom du modèle (doit correspondre à celui de 01_embedding.yaml)
+      model: "BAAI/bge-m3"
+
+      # Nombre de candidats à récupérer (avant fusion)
+      # Recommandé : 50-100 pour équilibre recall/latence
+      top_k: 100
+
+      # Type de quantization pour compression mémoire/vitesse
+      # Options : "none", "binary", "scalar", "product"
+      quantization: "binary"
+
+      # Latence cible (ms) pour cette étape
+      latency_target_ms: 100
+
+      # Support multilingue (natif pour BGE-M3)
+      multilingual: true
+
+      # Fine-tuning domaine (mettre à true si modèle fine-tuné)
+      fine_tuned: false
+
+      # Seuil de similarité minimum (0-1)
+      # Documents avec score < threshold sont exclus
+      similarity_threshold: 0.5
+
+    # -------------------------------------------------------------------------
+    # 2.2 SPARSE RETRIEVAL (Keyword Matching BM25)
+    # -------------------------------------------------------------------------
+    # Recherche par correspondance exacte de mots-clés avec pondération TF-IDF.
+    # Excellent pour : noms propres, codes, identifiants, phrases exactes, conformité
+    #
+    # ALGORITHME : BM25 (Best Matching 25)
+    # - k1 : saturation terme frequency (1.2-2.0, optimal 1.5)
+    # - b : normalisation longueur document (0-1, optimal 0.75)
+    #
+    # OUTILS : Pyserini (wrapper Lucene optimisé) ou Elasticsearch
+    # -------------------------------------------------------------------------
+    sparse_retrieval:
+      # Outil de recherche BM25
+      # Options : "pyserini" (recommandé), "elasticsearch", "rank_bm25"
+      tool: "pyserini"
+
+      # Algorithme de ranking
+      algorithm: "bm25"
+
+      # Paramètres BM25 (optimisés empiriquement)
+      params:
+        k1: 1.5   # Saturation term frequency
+        b: 0.75   # Length normalization
+
+      # Nombre de candidats à récupérer
+      top_k: 100
+
+      # Latence cible (ms) - BM25 est très rapide
+      latency_target_ms: 50
+
+    # -------------------------------------------------------------------------
+    # 2.3 LATE INTERACTION (ColBERTv2 - Token-level Matching)
+    # -------------------------------------------------------------------------
+    # Matching token-à-token avec MaxSim operator.
+    # Excellent pour : contextes longs, reasoning, généralisation out-of-domain
+    #
+    # MODÈLE : ColBERTv2 avec compression résiduelle
+    # - Embeddings token-level : 128 dimensions (vs 1024 pour dense)
+    # - MaxSim : similarité max entre tokens query et tokens document
+    # - Performance : 45× meilleure que single-vector sur reasoning
+    #
+    # AVANTAGES :
+    # - Interprétabilité : identification tokens pertinents
+    # - Gestion contextes longs supérieure
+    # - Généralisation domaine excellente
+    # -------------------------------------------------------------------------
+    late_interaction:
+      # Modèle ColBERT (v2 avec compression)
+      model: "colbert-ir/colbertv2.0"
+
+      # Dimensions des embeddings token-level
+      # 128 dimensions = compression vs 1024d original
+      token_embedding_dim: 128
+
+      # Opérateur de similarité
+      # MaxSim : max(sim(qt, dt)) pour chaque token query
+      operator: "MaxSim"
+
+      # Nombre de candidats à récupérer
+      # Moins que dense/sparse car plus coûteux
+      top_k: 50
+
+      # Latence cible (ms) - plus lent que dense/sparse
+      latency_target_ms: 200
+
+      # Fine-tuning domaine (sans annotations possibles)
+      fine_tuned: false
+
+      # Compression résiduelle pour réduction mémoire
+      compression_enabled: true
+
+  # ---------------------------------------------------------------------------
+  # 2.4 RESULTS FUSION (Blended RAG)
+  # ---------------------------------------------------------------------------
+  # Combine intelligemment les résultats des 3 retrievers pour maximiser
+  # la pertinence et la couverture.
+  #
+  # MÉTHODES DE FUSION :
+  # - RRF (Reciprocal Rank Fusion) : sans hyperparamètres, robuste
+  # - Weighted Sum : pondération configurable des scores
+  #
+  # AMÉLIORATION : +40% qualité vs retrieval simple (benchmark MLDR)
+  # ---------------------------------------------------------------------------
+  fusion:
+    # Méthode de fusion
+    # Options : "RRF" (recommandé, sans hyperparams), "weighted_sum", "learned"
+    method: "RRF"
+
+    # Nombre final de documents après fusion
+    # Recommandé : 100 pour alimenter le reranking
+    global_top_k: 100
+
+    # Déduplication des résultats identiques/très similaires
+    deduplication:
+      enabled: true
+      # Seuil de similarité pour considérer 2 docs comme doublons (0-1)
+      # 0.95 = quasi-identiques uniquement
+      similarity_threshold: 0.95
+      # Méthode de calcul similarité : "jaccard", "cosine", "edit_distance"
+      method: "cosine"
+
+    # Latence cible (ms) pour la fusion
+    latency_target_ms: 20
+
+    # ---------------------------------------------------------------------------
+    # POIDS POUR MÉTHODE WEIGHTED SUM (optionnel)
+    # ---------------------------------------------------------------------------
+    # RRF n'utilise pas ces poids, mais ils sont documentés pour basculer
+    # vers Weighted Sum si nécessaire. La somme doit faire 1.0.
+    #
+    # Recommandations initiales :
+    # - Dense : 0.4 (bonne compréhension sémantique globale)
+    # - Sparse : 0.3 (excellent pour termes spécifiques)
+    # - Late : 0.3 (meilleur pour contextes longs)
+    #
+    # Ces poids peuvent être optimisés via A/B testing ou apprentissage.
+    # ---------------------------------------------------------------------------
+    weights:
+      dense: 0.4
+      sparse: 0.3
+      late: 0.3
+
+    # ---------------------------------------------------------------------------
+    # STRATÉGIES D'OPTIMISATION (optionnel - avancé)
+    # ---------------------------------------------------------------------------
+    # Permettre l'apprentissage automatique des poids de fusion
+    # basé sur les métriques de qualité (nDCG, recall, etc.)
+    optimization:
+      enabled: false
+      # Méthode : "grid_search", "bayesian", "learned_fusion"
+      method: "bayesian"
+      # Métrique à optimiser : "ndcg@10", "recall@100", "mrr"
+      target_metric: "ndcg@10"

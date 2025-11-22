@@ -1,0 +1,140 @@
+# -----------------------------------------------------------------------------
+# CONFIGURATION GLOBALE DU PROJET D'INFÉRENCE RAG
+# Ce fichier centralise les paramètres généraux et les configurations des
+# services externes utilisés par le pipeline RAG.
+# -----------------------------------------------------------------------------
+
+# -----------------------------------------------------------------------------
+# CONFIGURATION DES PROVIDERS LLM (Large Language Model)
+# Définit les différentes plateformes et méthodes d'accès aux modèles de langage
+# et d'embedding. Chaque fournisseur peut avoir une méthode d'accès spécifique
+# (ex: "openai_compatible" pour les APIs compatibles OpenAI, "local" pour les
+# modèles exécutés localement, "huggingface_inference_api" pour Hugging Face).
+# -----------------------------------------------------------------------------
+llm_providers:
+  # Configuration pour OpenAI
+  openai:
+    access_method: "openai_compatible" # Indique que l'API est compatible OpenAI
+    base_url: "https://api.openai.com/v1" # URL de base de l'API OpenAI
+    api_key: "${OPENAI_API_KEY}" # Clé API, chargée depuis une variable d'environnement pour la sécurité
+
+  # Configuration pour OpenRouter (agrégateur d'APIs LLM)
+  openrouter:
+    access_method: "openai_compatible"
+    base_url: "https://openrouter.ai/api/v1"
+    api_key: "${OPENROUTER_API_KEY}"
+
+  # Configuration pour Anthropic (modèles Claude)
+  anthropic:
+    access_method: "openai_compatible"
+    base_url: "https://api.anthropic.com/v1"
+    api_key: "${ANTHROPIC_API_KEY}"
+
+  # Configuration pour Mistral AI
+  mistral_ai:
+    access_method: "openai_compatible"
+    base_url: "https://api.mistral.ai/v1"
+    api_key: "76cwpvjZqnFw1U0jLCEBKOHh5FprX2OJ" # Exemple de clé API (à remplacer par une variable d'environnement)
+
+  # Configuration pour Ollama (exécution locale de modèles)
+  ollama:
+    access_method: "openai_compatible"
+    base_url: "http://127.0.0.1:11434/v1" # URL par défaut pour Ollama local
+    api_key: "ollama" # Clé API générique pour Ollama
+
+  # Configuration pour Hugging Face Inference API
+  huggingface:
+    access_method: "huggingface_inference_api"
+    base_url: "https://api-inference.huggingface.co/v1"
+    api_key: "${HUGGINGFACE_API_KEY}"
+
+  # Configuration pour Sentence Transformers (modèles d'embedding locaux)
+  # Utilisé pour : BGE-M3 (embedding), bge-reranker-v2-m3 (reranking)
+  sentence_transformers:
+    access_method: "local" # Indique une exécution locale
+    library: "sentence-transformers" # Nom de la bibliothèque Python utilisée
+    # Modèles recommandés :
+    models:
+      embedding: "BAAI/bge-m3"  # Embedding dense 1024d, multilingue
+      reranker: "BAAI/bge-reranker-v2-m3"  # Reranker cross-encoder
+      colbert: "colbert-ir/colbertv2.0"  # Late interaction
+
+  # Configuration pour LM Studio (exécution locale de modèles)
+  lm_studio:
+    access_method: "openai_compatible"
+    base_url: "http://127.0.0.1:1234/v1" # URL par défaut pour LM Studio local
+    api_key: "lm-studio" # Clé API générique pour LM Studio
+
+  # Configuration pour vLLM (serveur d'inférence rapide)
+  vllm:
+    access_method: "openai_compatible"
+    base_url: "http://127.0.0.1:8000/v1" # URL par défaut pour vLLM local
+    api_key: "vllm" # Clé API générique pour vLLM
+
+  # Configuration pour une API générique compatible OpenAI
+  generic_api:
+    access_method: "openai_compatible"
+    base_url: "https://api.example.com/v1" # Exemple d'URL pour une API personnalisée
+    api_key: "${GENERIC_API_KEY}"
+
+# -----------------------------------------------------------------------------
+# CONFIGURATION DES ÉTAPES DU PIPELINE RAG ULTIME 2025
+# Active ou désactive des étapes spécifiques du pipeline d'inférence.
+# Chaque étape correspond à un fichier de config (01_embedding.yaml, etc.).
+# -----------------------------------------------------------------------------
+steps:
+  # === PIPELINE RAG ULTIME 2025 (6 ÉTAPES) ===
+  query_expansion_enabled: true     # 01 : Query Processing & Expansion
+  retrieval_enabled: true           # 02 : Retrieval Hybride Triple (Dense+Sparse+Late)
+  reranking_enabled: true           # 03 : Reranking Multi-Étages
+  compression_enabled: true         # 04 : Compression Contextuelle + MMR
+  generation_enabled: true          # 05 : Génération & Prompt Engineering
+  evaluation_enabled: true          # 06 : Évaluation & Métriques
+
+  # === PIPELINE PREPROCESSING (Optionnel - en amont du RAG) ===
+  preprocessing_enabled: false      # Pré-traitement des documents sources
+  chunking_enabled: false           # Découpage des documents en chunks
+  enrichment_enabled: false         # Enrichissement des chunks (métadonnées)
+  vector_storage_enabled: false     # Stockage dans la base vectorielle
+
+  # === MONITORING & OBSERVABILITÉ ===
+  monitoring_enabled: true          # Monitoring des performances et de l'exécution
+  audit_enabled: true               # Audit des opérations et des résultats
+  tracing_enabled: true             # Traces détaillées (TruLens/LangSmith)
+
+# -----------------------------------------------------------------------------
+# CONFIGURATION DES SERVICES EN LIGNE
+# Permet de contrôler l'activation des services qui nécessitent une connexion
+# internet, comme LangSmith pour la traçabilité. Utile pour les exécutions
+# 100% locales ou hors ligne.
+# -----------------------------------------------------------------------------
+online_services:
+  enabled: false # Mettre à 'true' pour activer les services en ligne (ex: LangSmith)
+
+# -----------------------------------------------------------------------------
+# CONFIGURATION DU LOGGING
+# Définit les paramètres de journalisation pour l'application.
+# -----------------------------------------------------------------------------
+logging:
+  level: "INFO" # Niveau de journalisation (DEBUG, INFO, WARNING, ERROR, CRITICAL)
+  format: "%(asctime)s - %(name)s - %(levelname)s - %(message)s" # Format des messages de log
+  log_file: "logs/rag_audit.log" # Chemin du fichier de log
+  structured: true # Active la journalisation structurée (ex: JSON)
+  include_traceback: true # Inclut les traces d'erreurs complètes dans les logs
+
+# -----------------------------------------------------------------------------
+# CONFIGURATION DE PERFORMANCE
+# Paramètres liés à l'optimisation des performances du pipeline.
+# -----------------------------------------------------------------------------
+performance:
+  batch_size: 10 # Taille des lots pour le traitement parallèle
+  max_workers: 4 # Nombre maximal de workers pour l'exécution concurrente
+  timeout_seconds: 300 # Délai d'attente maximal pour certaines opérations (en secondes)
+
+# -----------------------------------------------------------------------------
+# CONFIGURATION DE LA SYNCHRONISATION GIT AUTOMATIQUE
+# Ce bloc fait référence à une configuration plus détaillée dans
+# 'config/synchrogithub.yaml'. Il est inclus ici pour indiquer la présence
+# d'une fonctionnalité de synchronisation Git.
+# -----------------------------------------------------------------------------
+# RÉFÉRENCE : Voir config/synchrogithub.yaml pour la configuration complète

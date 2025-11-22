@@ -1,0 +1,357 @@
+# =============================================================================
+# ÉTAPE 05 : GÉNÉRATION & ENRICHISSEMENT DE PROMPT (RAG ULTIME 2025)
+# =============================================================================
+# Configuration du LLM de génération et du prompt engineering pour produire
+# des réponses de haute qualité basées sur le contexte récupéré.
+#
+# FRAMEWORKS DISPONIBLES :
+# - LangChain : flexible, workflows complexes, intégrations nombreuses
+# - LlamaIndex : RAG-focused, simple, optimisé pour RAG
+# - DSPy : optimisation automatique des prompts via machine learning
+#
+# OBJECTIFS :
+# - Générer réponses précises et fidèles au contexte
+# - Citer les sources pour traçabilité
+# - Refuser de répondre si contexte insuffisant (éviter hallucinations)
+# - Structurer la réponse selon format souhaité
+#
+# CONTEXT WINDOW REQUIS :
+# - Minimum : 32k tokens
+# - Recommandé : ≥128k tokens (GPT-4-Turbo, Claude 2.1+, Gemini 1.5)
+# =============================================================================
+
+generation:
+  # Activer/désactiver la génération
+  enabled: true
+
+  # ===========================================================================
+  # 5.1 CONFIGURATION DU LLM DE GÉNÉRATION
+  # ===========================================================================
+  # LLM principal pour générer la réponse finale.
+  #
+  # MODÈLES RECOMMANDÉS 2025 :
+  # - Ollama (llama3/mistral) : 100% gratuit, local, pas de clé API
+  # - OpenAI GPT-4o-mini : payant, rapide, performant, API simple
+  # - Anthropic Claude 3.5 Sonnet : payant, très performant, context 200k
+  # - Mistral Large : payant, bon rapport qualité/prix
+  # ===========================================================================
+  llm:
+    # Provider du LLM (doit être défini dans global.yaml)
+    # Options : "ollama", "openai", "anthropic", "mistral_ai", "openrouter"
+    provider: "ollama"
+
+    # Modèle spécifique
+    # Ollama : "llama3", "mistral", "mixtral"
+    # OpenAI : "gpt-4o-mini", "gpt-4-turbo", "gpt-4o"
+    # Anthropic : "claude-3-5-sonnet-20241022", "claude-3-opus-20240229"
+    model: "llama3"
+
+    # Température de génération (0-1)
+    # 0 = déterministe, factuel, prévisible (RECOMMANDÉ pour RAG)
+    # 1 = créatif, varié
+    temperature: 0.0
+
+    # Nombre maximum de tokens à générer
+    # Contrôle la longueur de la réponse
+    max_tokens: 1000
+
+    # Top-p (nucleus sampling) (0-1)
+    # Alternative à température, contrôle diversité
+    # Recommandé : 0.9-1.0 pour RAG
+    top_p: 0.95
+
+    # Présence penalty (-2.0 à 2.0)
+    # Réduit répétitions de concepts
+    presence_penalty: 0.0
+
+    # Frequency penalty (-2.0 à 2.0)
+    # Réduit répétitions de tokens exacts
+    frequency_penalty: 0.0
+
+    # Stop sequences (optionnel)
+    # Arrête génération si ces tokens sont rencontrés
+    stop_sequences: []
+
+    # Timeout pour appel API (secondes)
+    timeout: 60
+
+  # --- EXEMPLES DE CONFIGURATIONS ALTERNATIVES ---
+  # LLM OpenAI GPT-4o-mini :
+  # llm:
+  #   provider: "openai"
+  #   model: "gpt-4o-mini"
+  #   temperature: 0.0
+  #   max_tokens: 1000
+  #
+  # LLM Anthropic Claude 3.5 Sonnet :
+  # llm:
+  #   provider: "anthropic"
+  #   model: "claude-3-5-sonnet-20241022"
+  #   temperature: 0.0
+  #   max_tokens: 2000
+
+  # ===========================================================================
+  # 5.2 STRUCTURE DU PROMPT RAG
+  # ===========================================================================
+  # Architecture du prompt en 5 composants essentiels.
+  #
+  # COMPOSANTS :
+  # 1. Instruction système : rôle et directive claire
+  # 2. Contexte formaté : documents récupérés structurés
+  # 3. Query utilisateur : question originale
+  # 4. Contraintes : citations, refus si insuffisant, format
+  # 5. Format de sortie : JSON, markdown, texte structuré
+  # ===========================================================================
+  prompt:
+    # Framework de prompt
+    # Options : "langchain", "llamaindex", "dspy", "custom"
+    framework: "langchain"
+
+    # ---------------------------------------------------------------------------
+    # 5.2.1 INSTRUCTION SYSTÈME (System Prompt)
+    # ---------------------------------------------------------------------------
+    # Définit le rôle et les directives générales pour le LLM
+    system_prompt: |
+      Tu es un assistant expert qui répond aux questions en te basant UNIQUEMENT
+      sur le contexte fourni ci-dessous. Tes réponses doivent être:
+
+      - Précises et factuelles
+      - Basées exclusivement sur le contexte fourni
+      - Accompagnées de citations des sources [1], [2], etc.
+      - Claires et concises
+
+      Si le contexte ne contient pas assez d'informations pour répondre à la
+      question, tu DOIS dire: "Je n'ai pas trouvé suffisamment d'informations
+      dans le contexte fourni pour répondre à cette question."
+
+      Ne jamais inventer ou déduire des informations qui ne sont pas
+      explicitement dans le contexte.
+
+    # ---------------------------------------------------------------------------
+    # 5.2.2 FORMAT DU CONTEXTE
+    # ---------------------------------------------------------------------------
+    # Comment les chunks récupérés sont présentés au LLM
+    context_format:
+      # Template pour chaque chunk
+      # Variables disponibles : {chunk_id}, {content}, {source}, {score}
+      chunk_template: |
+        [{chunk_id}] (Source: {source}, Score: {score:.2f})
+        {content}
+
+      # Séparateur entre chunks
+      separator: "\n\n---\n\n"
+
+      # Inclure les métadonnées (source, score, etc.)
+      include_metadata: true
+
+      # Trier chunks par score de relevance (décroissant)
+      sort_by_relevance: true
+
+      # Numéroter les chunks pour citations
+      number_chunks: true
+
+    # ---------------------------------------------------------------------------
+    # 5.2.3 PROMPT UTILISATEUR (User Prompt)
+    # ---------------------------------------------------------------------------
+    # Template du prompt final envoyé au LLM
+    # Variables disponibles : {context}, {query}, {num_chunks}
+    user_prompt_template: |
+      Contexte ({num_chunks} documents) :
+      {context}
+
+      Question : {query}
+
+      Instructions :
+      - Réponds à la question en utilisant UNIQUEMENT les informations du contexte ci-dessus
+      - Cite tes sources en utilisant les numéros de documents [1], [2], etc.
+      - Si la réponse n'est pas dans le contexte, dis-le clairement
+      - Sois concis mais complet
+
+      Réponse :
+
+  # ===========================================================================
+  # 5.3 TECHNIQUES DE PROMPT ENGINEERING AVANCÉES
+  # ===========================================================================
+  # Techniques pour améliorer la qualité des réponses.
+  #
+  # OPTIONS :
+  # - Chain-of-Thought (CoT) : raisonnement étape par étape
+  # - Few-Shot : exemples de Q&A pour guider le format
+  # - Extractive : retourne uniquement texte exact des documents
+  # - Contrastive : analyse multi-perspectives
+  # ===========================================================================
+  advanced_techniques:
+    # -------------------------------------------------------------------------
+    # CHAIN-OF-THOUGHT (CoT)
+    # -------------------------------------------------------------------------
+    # Encourage le LLM à raisonner étape par étape
+    chain_of_thought:
+      enabled: false
+      prompt_addition: |
+        Avant de répondre, identifie d'abord les faits clés du contexte,
+        puis raisonne étape par étape vers la réponse.
+
+    # -------------------------------------------------------------------------
+    # FEW-SHOT PROMPTING
+    # -------------------------------------------------------------------------
+    # Inclure 2-3 exemples de Q&A pour guider le format
+    few_shot:
+      enabled: false
+      examples:
+        - query: "Quelle est la politique de mot de passe ?"
+          context: "La politique exige 12 caractères minimum..."
+          answer: "La politique de mot de passe exige 12 caractères minimum [1]."
+
+        - query: "Quel est le délai de livraison ?"
+          context: "Les commandes sont livrées sous 3-5 jours ouvrés..."
+          answer: "Les commandes sont livrées sous 3-5 jours ouvrés [2]."
+
+    # -------------------------------------------------------------------------
+    # EXTRACTIVE ANSWERING
+    # -------------------------------------------------------------------------
+    # Retourne uniquement le texte exact des documents (minimise hallucinations)
+    extractive:
+      enabled: false
+      prompt_override: |
+        Extrais le passage le plus pertinent du contexte qui répond à la question.
+        Retourne uniquement le texte exact sans modification ni reformulation.
+        Cite la source [numéro].
+
+    # -------------------------------------------------------------------------
+    # CONTRASTIVE ANSWERING
+    # -------------------------------------------------------------------------
+    # Génère réponses multi-perspectives (utile pour analyses)
+    contrastive:
+      enabled: false
+      prompt_override: |
+        Fournis une analyse équilibrée de la question :
+
+        Avantages (arguments pour) :
+        - ...
+
+        Inconvénients (arguments contre) :
+        - ...
+
+        Conclusion basée sur le contexte :
+        - ...
+
+  # ===========================================================================
+  # 5.4 POST-PROCESSING DE LA RÉPONSE
+  # ===========================================================================
+  # Traitement de la réponse générée avant retour à l'utilisateur
+  # ===========================================================================
+  post_processing:
+    # -------------------------------------------------------------------------
+    # VALIDATION DE LA RÉPONSE
+    # -------------------------------------------------------------------------
+    validation:
+      # Vérifier que la réponse cite au moins une source
+      require_citations: true
+
+      # Longueur minimale de la réponse (en caractères)
+      min_length: 50
+
+      # Vérifier cohérence sémantique avec le contexte
+      semantic_consistency_check: false
+
+    # -------------------------------------------------------------------------
+    # FORMATAGE
+    # -------------------------------------------------------------------------
+    formatting:
+      # Format de sortie : "text", "markdown", "json", "html"
+      output_format: "markdown"
+
+      # Ajouter liste des sources en fin de réponse
+      append_sources: true
+
+      # Template pour la liste des sources
+      sources_template: |
+
+        ---
+        Sources utilisées :
+        {sources}
+
+      # Nettoyer espaces/sauts de ligne superflus
+      clean_whitespace: true
+
+  # ===========================================================================
+  # 5.5 GESTION DU CONTEXT WINDOW
+  # ===========================================================================
+  # Assurer que le contexte + prompt + réponse tiennent dans le context window
+  # ===========================================================================
+  context_window:
+    # Taille du context window du modèle (tokens)
+    # GPT-4-Turbo : 128k, Claude 3.5 Sonnet : 200k, Llama3 : 8k
+    model_context_window: 8192
+
+    # Réserver tokens pour la réponse générée
+    reserved_for_completion: 1500
+
+    # Tokens alloués au prompt système
+    reserved_for_system_prompt: 500
+
+    # Tokens maximum pour le contexte (chunks)
+    max_context_tokens: 6000
+
+    # Stratégie si contexte trop long
+    # Options : "truncate", "summarize", "error"
+    overflow_strategy: "truncate"
+
+  # ===========================================================================
+  # 5.6 PERFORMANCE & CACHING
+  # ===========================================================================
+  performance:
+    # Latence maximale acceptable pour génération (secondes)
+    max_latency_seconds: 30
+
+    # Cache des réponses pour requêtes identiques
+    cache_enabled: true
+
+    # TTL du cache (secondes)
+    cache_ttl: 3600
+
+    # Streaming de la réponse (affichage progressif)
+    stream_response: false
+
+  # ===========================================================================
+  # 5.7 MÉTRIQUES & OBSERVABILITÉ
+  # ===========================================================================
+  metrics:
+    enabled: true
+    track:
+      - "latency_ms"
+      - "tokens_prompt"
+      - "tokens_completion"
+      - "tokens_total"
+      - "cost_usd"  # Si API payante
+      - "num_citations"
+      - "response_length"
+
+# =============================================================================
+# EXEMPLES DE RÉPONSES ATTENDUES
+# =============================================================================
+# Exemple 1 - Réponse standard :
+# Query: "Quelle est la politique de sauvegarde ?"
+# Réponse:
+# """
+# La politique de sauvegarde prévoit des sauvegardes quotidiennes
+# automatiques à 2h du matin [1]. Les données sont conservées pendant
+# 30 jours avec possibilité de restauration complète [2]. Les sauvegardes
+# sont chiffrées en AES-256 et stockées dans 3 datacenters géographiquement
+# distribués [3].
+#
+# ---
+# Sources utilisées :
+# [1] Documentation IT - Politique de sauvegarde v2.1
+# [2] Procédure de restauration - Section 3.2
+# [3] Standards de sécurité - Annexe B
+# """
+#
+# Exemple 2 - Contexte insuffisant :
+# Query: "Quel est le budget marketing 2026 ?"
+# Réponse:
+# """
+# Je n'ai pas trouvé suffisamment d'informations dans le contexte fourni
+# pour répondre à cette question sur le budget marketing 2026.
+# """
+# =============================================================================

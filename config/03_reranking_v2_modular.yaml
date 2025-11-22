@@ -1,0 +1,711 @@
+# =============================================================================
+# ÉTAPE 03 v2 : RERANKING AVANCÉ - CONFIGURATION MODULAIRE
+# =============================================================================
+# Configuration avec activation/désactivation GRANULAIRE de chaque sous-étape.
+#
+# NOUVEAUTÉ v2.1 :
+# - Section MASTER CONFIG : activer/désactiver chaque étape facilement
+# - FLAGS GRANULAIRES : contrôle fin de chaque feature
+# - PRESETS : configurations prédéfinies (minimal, balanced, maximal, legacy_v1)
+# - Matrice de dépendances : validation automatique
+# - Mode debug : logging détaillé de chaque étape
+# =============================================================================
+
+# =============================================================================
+# ⚙️ MASTER CONFIGURATION - ACTIVATION/DÉSACTIVATION GRANULAIRE
+# =============================================================================
+# Activer/désactiver individuellement chaque sous-étape ET chaque feature.
+# Changez simplement true/false pour activer/désactiver.
+#
+# ATTENTION : Certaines étapes ont des dépendances (voir matrice ci-dessous)
+# =============================================================================
+
+step_03_config:
+  # ---------------------------------------------------------------------------
+  # MODE DE CONFIGURATION
+  # ---------------------------------------------------------------------------
+  # Options : "preset", "custom"
+  # - "preset" : utilise un preset prédéfini (voir section presets)
+  # - "custom" : configuration manuelle via les flags ci-dessous
+  mode: "preset"
+
+  # Preset à utiliser si mode="preset"
+  # Options : "minimal", "balanced", "maximal", "legacy_v1"
+  preset: "balanced"
+
+  # ---------------------------------------------------------------------------
+  # FLAGS D'ACTIVATION GRANULAIRE (utilisés si mode="custom")
+  # ---------------------------------------------------------------------------
+
+  # [3.1] Query-Document Feature Engineering
+  step_3_1_features:
+    enabled: true                          # ⭐ Recommandé
+    lexical_features: true                 # Term overlap, BM25, TF-IDF
+    semantic_features: true                # Embedding similarity
+    structural_features: true              # Doc length, position
+    metadata_features: true                # Domain, temporal, language match
+    store_features: true                   # Stocker pour 3.6, 3.10
+
+  # [3.2] Contextualization
+  step_3_2_context:
+    enabled: true                          # ⭐ Recommandé
+    document_context: true                 # [Metadata] + Texte
+    query_context: true                    # [Type|Intent] + Query
+    hybrid_context: false                  # Query + Doc (optionnel)
+
+  # [3.3] Préréranking
+  step_3_3_prererank:
+    enabled: true                          # ⭐⭐ Important
+    single_method: true                    # ColBERT/MiniLM/BGE-small
+    ensemble_method: false                 # Multiple prererankers (optionnel)
+    adaptive_top_k: true                   # Adapter top_k selon complexity
+
+  # [3.4] Cross-Encoder Reranking
+  step_3_4_cross_encoder:
+    enabled: true                          # ⭐⭐⭐ OBLIGATOIRE
+    contextualized_input: true             # Utilise 3.2 (recommandé)
+    adaptive_batching: true                # Batching intelligent
+    score_normalization: true              # Normaliser scores
+
+  # [3.5] LLM Reranking
+  step_3_5_llm:
+    enabled: false                         # ⚠️ Désactivé par défaut (+4-6s)
+    method: "listwise"                     # pointwise/pairwise/listwise
+    conditional_activation: true           # Activer si query complexe
+    cache_enabled: true                    # Cache responses
+
+  # [3.6] Hybrid Reranking Fusion
+  step_3_6_hybrid:
+    enabled: false                         # ⚠️ Désactivé par défaut (coût)
+    reranker_bge: true                     # BGE-reranker-v2-m3
+    reranker_cohere: false                 # Cohere Rerank (API payante)
+    reranker_jina: false                   # jina-reranker (API)
+    fusion_method: "weighted_sum"          # weighted_sum/RRF/learned
+
+  # [3.7] Score Calibration
+  step_3_7_calibration:
+    enabled: true                          # ⭐ Recommandé
+    method: "temperature_scaling"          # temperature/platt/isotonic
+    apply_to_all: true                     # Calibrer tous scores
+
+  # [3.8] Adaptive Filtering
+  step_3_8_filtering:
+    enabled: true                          # ⭐ Recommandé
+    adaptive_thresholds: true              # Seuils selon query
+    adaptive_top_k: true                   # Top-k selon query
+    confidence_filtering: true             # Filtrer si confidence faible
+
+  # [3.9] Diversification & Deduplication
+  step_3_9_diversity:
+    enabled: true                          # ⭐⭐ Important
+    mmr: true                              # Maximal Marginal Relevance
+    mmr_use_features: true                 # MMR avec features 3.1
+    source_coverage: true                  # Multi-sources
+    temporal_diversity: false              # Varier périodes (optionnel)
+    deduplication: true                    # Éliminer doublons
+    near_duplicate_detection: true         # Doublons subtils
+
+  # [3.10] Quality Validation & Metrics
+  step_3_10_validation:
+    enabled: true                          # ⭐⭐⭐ OBLIGATOIRE
+    coverage_check: true                   # Couvrir query aspects
+    confidence_check: true                 # Scores suffisamment élevés
+    diversity_check: true                  # Variété sources
+    compute_metrics: true                  # nDCG, precision, recall, MRR
+    export_prometheus: false               # Export Prometheus (optionnel)
+
+# =============================================================================
+# 📦 PRESETS DE CONFIGURATION
+# =============================================================================
+# Configurations prédéfinies pour démarrage rapide.
+# Sélectionner via : step_03_config.mode="preset" et step_03_config.preset="..."
+# =============================================================================
+
+presets:
+  # ---------------------------------------------------------------------------
+  # PRESET : minimal (Quick Start)
+  # ---------------------------------------------------------------------------
+  # Configuration minimale pour démarrage rapide.
+  # Gains : +12% qualité
+  # Latence : 330ms
+  # Effort : 1 semaine implémentation
+  # Use case : FAQ, Support Client, Latence critique
+  # ---------------------------------------------------------------------------
+  minimal:
+    description: "Configuration minimale - Quick Start"
+    latency_target_ms: 330
+    quality_gain_estimate: "+12%"
+
+    enabled_steps:
+      step_3_1_features:
+        enabled: false                     # Désactivé (latence)
+
+      step_3_2_context:
+        enabled: true                      # ✅ Contextualization light
+        document_context: true
+        query_context: false               # Désactivé
+        hybrid_context: false
+
+      step_3_3_prererank:
+        enabled: true
+        single_method: true                # ✅ ColBERT seulement
+        ensemble_method: false
+        adaptive_top_k: true
+
+      step_3_4_cross_encoder:
+        enabled: true                      # ✅ BGE-reranker
+        contextualized_input: true
+        adaptive_batching: true
+        score_normalization: true
+
+      step_3_5_llm:
+        enabled: false                     # Désactivé (trop lent)
+
+      step_3_6_hybrid:
+        enabled: false                     # Désactivé (coût)
+
+      step_3_7_calibration:
+        enabled: true                      # ✅ Temperature scaling
+        method: "temperature_scaling"
+        apply_to_all: true
+
+      step_3_8_filtering:
+        enabled: true                      # ✅ Adaptive filtering
+        adaptive_thresholds: true
+        adaptive_top_k: true
+        confidence_filtering: false
+
+      step_3_9_diversity:
+        enabled: true                      # ✅ MMR + Dedup
+        mmr: true
+        mmr_use_features: false
+        source_coverage: true
+        temporal_diversity: false
+        deduplication: true
+        near_duplicate_detection: false
+
+      step_3_10_validation:
+        enabled: true                      # ✅ Validation minimale
+        coverage_check: true
+        confidence_check: false
+        diversity_check: false
+        compute_metrics: false
+        export_prometheus: false
+
+  # ---------------------------------------------------------------------------
+  # PRESET : balanced (Recommandé)
+  # ---------------------------------------------------------------------------
+  # Configuration équilibrée qualité/latence/effort.
+  # Gains : +30% qualité
+  # Latence : 360ms
+  # Effort : 2-3 semaines implémentation
+  # Use case : Recherche entreprise, Intranet, E-commerce
+  # ---------------------------------------------------------------------------
+  balanced:
+    description: "Configuration équilibrée - Recommandé pour production"
+    latency_target_ms: 360
+    quality_gain_estimate: "+30%"
+
+    enabled_steps:
+      step_3_1_features:
+        enabled: true                      # ✅ Feature engineering
+        lexical_features: true
+        semantic_features: true
+        structural_features: true
+        metadata_features: true
+        store_features: true
+
+      step_3_2_context:
+        enabled: true                      # ✅ Contextualization complète
+        document_context: true
+        query_context: true                # ✅ Activé
+        hybrid_context: false
+
+      step_3_3_prererank:
+        enabled: true
+        single_method: true
+        ensemble_method: false             # Désactivé (latence)
+        adaptive_top_k: true
+
+      step_3_4_cross_encoder:
+        enabled: true
+        contextualized_input: true         # ✅ Utilise 3.2
+        adaptive_batching: true
+        score_normalization: true
+
+      step_3_5_llm:
+        enabled: false                     # Désactivé (trop lent)
+        # Pourrait être activé conditionnellement
+
+      step_3_6_hybrid:
+        enabled: false                     # Désactivé (coût)
+        # Pourrait être activé avec budget
+
+      step_3_7_calibration:
+        enabled: true                      # ✅ Calibration
+        method: "temperature_scaling"
+        apply_to_all: true
+
+      step_3_8_filtering:
+        enabled: true                      # ✅ Adaptive filtering
+        adaptive_thresholds: true
+        adaptive_top_k: true
+        confidence_filtering: true         # ✅ Activé
+
+      step_3_9_diversity:
+        enabled: true                      # ✅ Diversification complète
+        mmr: true
+        mmr_use_features: true             # ✅ MMR avec features
+        source_coverage: true
+        temporal_diversity: false
+        deduplication: true
+        near_duplicate_detection: true     # ✅ Activé
+
+      step_3_10_validation:
+        enabled: true                      # ✅ Validation complète
+        coverage_check: true
+        confidence_check: true             # ✅ Activé
+        diversity_check: true              # ✅ Activé
+        compute_metrics: true              # ✅ Activé
+        export_prometheus: true            # ✅ Prometheus
+
+  # ---------------------------------------------------------------------------
+  # PRESET : maximal (SOTA)
+  # ---------------------------------------------------------------------------
+  # Configuration maximale pour qualité optimale.
+  # Gains : +50% qualité
+  # Latence : 4600ms (si LLM toujours) ou 800ms (si LLM conditionnel)
+  # Effort : 2-3 mois implémentation
+  # Use case : Recherche académique, Legal, Medical, Qualité primordiale
+  # ---------------------------------------------------------------------------
+  maximal:
+    description: "Configuration maximale - SOTA"
+    latency_target_ms: 800  # Avec LLM conditionnel
+    quality_gain_estimate: "+50%"
+
+    enabled_steps:
+      step_3_1_features:
+        enabled: true                      # ✅ Feature engineering complet
+        lexical_features: true
+        semantic_features: true
+        structural_features: true
+        metadata_features: true
+        store_features: true
+
+      step_3_2_context:
+        enabled: true                      # ✅ Contextualization maximale
+        document_context: true
+        query_context: true
+        hybrid_context: true               # ✅ Activé
+
+      step_3_3_prererank:
+        enabled: true
+        single_method: false
+        ensemble_method: true              # ✅ Ensemble prereranking
+        adaptive_top_k: true
+
+      step_3_4_cross_encoder:
+        enabled: true
+        contextualized_input: true
+        adaptive_batching: true
+        score_normalization: true
+
+      step_3_5_llm:
+        enabled: true                      # ✅ LLM reranking activé
+        method: "listwise"
+        conditional_activation: true       # ✅ Conditionnel (queries complexes)
+        cache_enabled: true
+
+      step_3_6_hybrid:
+        enabled: true                      # ✅ Hybrid fusion activé
+        reranker_bge: true
+        reranker_cohere: true              # ✅ Cohere activé
+        reranker_jina: false               # Optionnel
+        fusion_method: "learned"           # ✅ Learned fusion
+
+      step_3_7_calibration:
+        enabled: true
+        method: "platt"                    # ✅ Platt scaling (meilleur)
+        apply_to_all: true
+
+      step_3_8_filtering:
+        enabled: true
+        adaptive_thresholds: true
+        adaptive_top_k: true
+        confidence_filtering: true
+
+      step_3_9_diversity:
+        enabled: true
+        mmr: true
+        mmr_use_features: true
+        source_coverage: true
+        temporal_diversity: true           # ✅ Activé
+        deduplication: true
+        near_duplicate_detection: true
+
+      step_3_10_validation:
+        enabled: true
+        coverage_check: true
+        confidence_check: true
+        diversity_check: true
+        compute_metrics: true
+        export_prometheus: true
+
+  # ---------------------------------------------------------------------------
+  # PRESET : legacy_v1 (Backward Compatible)
+  # ---------------------------------------------------------------------------
+  # Configuration identique à la v1 pour compatibilité.
+  # Gains : Baseline (0%)
+  # Latence : 310ms
+  # Use case : Migration progressive, A/B testing
+  # ---------------------------------------------------------------------------
+  legacy_v1:
+    description: "Configuration v1 - Backward compatible"
+    latency_target_ms: 310
+    quality_gain_estimate: "Baseline (0%)"
+
+    enabled_steps:
+      step_3_1_features:
+        enabled: false                     # ❌ N'existe pas en v1
+
+      step_3_2_context:
+        enabled: false                     # ❌ N'existe pas en v1
+
+      step_3_3_prererank:
+        enabled: true                      # ✅ Existe en v1
+        single_method: true
+        ensemble_method: false
+        adaptive_top_k: false              # Pas adaptatif v1
+
+      step_3_4_cross_encoder:
+        enabled: true                      # ✅ BGE (comme v1)
+        contextualized_input: false        # Pas contextualisé v1
+        adaptive_batching: false
+        score_normalization: true
+
+      step_3_5_llm:
+        enabled: false                     # ❌ N'existe pas en v1
+
+      step_3_6_hybrid:
+        enabled: false                     # ❌ N'existe pas en v1
+
+      step_3_7_calibration:
+        enabled: false                     # ❌ N'existe pas en v1
+
+      step_3_8_filtering:
+        enabled: false                     # ❌ N'existe pas en v1
+
+      step_3_9_diversity:
+        enabled: true                      # ✅ Existe en v1
+        mmr: true                          # ✅ MMR existe v1
+        mmr_use_features: false            # Pas features v1
+        source_coverage: true
+        temporal_diversity: false
+        deduplication: true                # ✅ Dedup existe v1
+        near_duplicate_detection: false
+
+      step_3_10_validation:
+        enabled: false                     # ❌ Validation minimale v1
+        # Métriques calculées mais pas de validation
+
+# =============================================================================
+# 📊 MATRICE DE DÉPENDANCES
+# =============================================================================
+# Certaines étapes dépendent d'autres. Cette section documente les dépendances.
+# Le système validera automatiquement la configuration au démarrage.
+# =============================================================================
+
+dependencies:
+  # Si vous activez une étape avec dépendances, les dépendances doivent être activées aussi
+
+  step_3_2_context.query_context:
+    requires:
+      - "Phase 01: step_1_1_query_understanding"  # Besoin query type/intent
+    warning: "Query context nécessite query understanding Phase 01"
+
+  step_3_3_prererank.adaptive_top_k:
+    requires:
+      - "Phase 01: step_1_1_query_understanding.complexity_scoring"
+    warning: "Adaptive top-k nécessite complexity score Phase 01"
+
+  step_3_4_cross_encoder.contextualized_input:
+    requires:
+      - step_3_2_context                         # Besoin contextualization
+    warning: "Contextualized input nécessite étape 3.2"
+
+  step_3_5_llm.conditional_activation:
+    requires:
+      - "Phase 01: step_1_1_query_understanding"  # Besoin complexity/type
+    optional:
+      - step_3_4_cross_encoder                   # Pour threshold top-1 score
+
+  step_3_6_hybrid.fusion_method_learned:
+    requires:
+      - step_3_1_features                        # Besoin features pour learned fusion
+      - "Données labellisées (10K+ queries)"
+    warning: "Learned fusion nécessite features et données training"
+
+  step_3_8_filtering.adaptive_thresholds:
+    requires:
+      - "Phase 01: step_1_1_query_understanding"  # Besoin query type/complexity
+    warning: "Adaptive filtering nécessite query understanding Phase 01"
+
+  step_3_9_diversity.mmr_use_features:
+    requires:
+      - step_3_1_features                        # Besoin features extracted
+    warning: "MMR with features nécessite étape 3.1"
+
+  step_3_10_validation.compute_metrics:
+    requires:
+      - "Relevance labels (ground truth)"
+    warning: "Métriques nécessitent relevance judgments"
+
+# =============================================================================
+# 🔍 VALIDATION DE CONFIGURATION
+# =============================================================================
+# Validation automatique au démarrage pour détecter configurations invalides.
+# =============================================================================
+
+validation:
+  enabled: true                                  # Valider config au démarrage
+
+  # Comportement si dépendances manquantes
+  # Options : "error" (bloquer), "warn" (avertir), "auto_fix" (corriger auto)
+  on_missing_dependency: "warn"
+
+  # Comportement si configuration incohérente
+  on_invalid_config: "error"
+
+  # Checks à effectuer
+  checks:
+    - "check_dependencies"                       # Vérifier dépendances
+    - "check_model_availability"                 # Vérifier modèles téléchargés
+    - "check_api_keys"                           # Vérifier API keys (si hybrid/LLM)
+    - "check_latency_budget"                     # Vérifier budget latence réaliste
+
+# =============================================================================
+# 🐛 MODE DEBUG
+# =============================================================================
+# Logging détaillé de chaque sous-étape pour debugging.
+# =============================================================================
+
+debug:
+  enabled: false                                 # Désactiver en production
+
+  # Niveau de logging
+  # Options : "DEBUG", "INFO", "WARNING", "ERROR"
+  log_level: "DEBUG"
+
+  # Logger chaque sous-étape individuellement
+  log_substeps: true
+
+  # Inclure données intermédiaires dans les logs
+  include_intermediate_data: true
+
+  # Inclure scores intermédiaires (top-10 par reranker)
+  include_intermediate_scores: true
+
+  # Durée max acceptable par sous-étape (alertes si dépassé)
+  latency_alerts:
+    step_3_1: 20                                 # Feature engineering
+    step_3_2: 15                                 # Contextualization
+    step_3_3: 60                                 # Prereranking
+    step_3_4: 350                                # Cross-encoder
+    step_3_5: 5000                               # LLM (très lent)
+    step_3_6: 150                                # Hybrid fusion
+    step_3_7: 10                                 # Calibration
+    step_3_8: 10                                 # Adaptive filtering
+    step_3_9: 40                                 # Diversification
+    step_3_10: 15                                # Validation
+
+# =============================================================================
+# 💾 CONFIGURATION DÉTAILLÉE DES SOUS-ÉTAPES
+# =============================================================================
+# Configuration fine de chaque sous-étape (identique à 03_reranking_v2.yaml)
+# Ces paramètres sont utilisés si l'étape est activée via master config
+# =============================================================================
+
+# [3.1] Query-Document Feature Engineering
+feature_engineering:
+  lexical_features:
+    term_overlap: {method: "jaccard", normalize: true}
+    bm25_score: {params: {k1: 1.5, b: 0.75}}
+    tfidf_similarity: {enabled: true}
+
+  semantic_features:
+    embedding_similarity: {model: "BAAI/bge-m3", method: "cosine"}
+
+  structural_features:
+    doc_length: {normalize: true}
+    original_rank: {normalize: true}
+
+  metadata_features:
+    domain_match: {boost_factor: 1.1}
+    temporal_match: {boost_factor: 1.15, tolerance_days: 365}
+    language_match: {boost_factor: 1.05}
+
+# [3.2] Contextualization
+contextualization:
+  document_context:
+    metadata_fields: ["title", "author", "date", "domain", "source"]
+    template: "[{metadata}] {text}"
+    max_length: 512
+
+  query_context:
+    add_query_type: true
+    add_query_intent: true
+    template: "[{type}|{intent}] {query}"
+
+# [3.3] Préréranking
+prereranking:
+  single_method:
+    tool: "ragatouille"
+    model: "colbert-ir/colbertv2.0"
+    input_top_k: 100
+    output_top_k: 50
+
+  ensemble_method:
+    methods:
+      - {name: "colbert", tool: "ragatouille", weight: 0.6}
+      - {name: "minilm", tool: "sentence_transformers", weight: 0.4}
+
+  adaptive_top_k:
+    by_complexity: {simple: 30, medium: 50, complex: 70}
+
+# [3.4] Cross-Encoder Reranking
+cross_encoder:
+  provider: "sentence_transformers"
+  model: "BAAI/bge-reranker-v2-m3"
+  input_top_k: 50
+  output_top_k: 20
+  batch_size: 8
+  normalize_scores: true
+  min_score_threshold: 0.4
+
+# [3.5] LLM Reranking
+llm_reranking:
+  provider: "ollama"
+  model: "llama3"
+  method: "listwise"
+  input_top_k: 10
+  output_top_k: 10
+  temperature: 0.0
+
+  conditional_activation:
+    min_complexity: 0.7
+    query_types: ["analytical", "comparative"]
+    max_top1_score: 0.8
+
+# [3.6] Hybrid Reranking Fusion
+hybrid_fusion:
+  rerankers:
+    - {name: "bge", provider: "sentence_transformers", weight: 0.5}
+    - {name: "cohere", provider: "cohere", weight: 0.3}
+    - {name: "jina", provider: "jina", weight: 0.2}
+  fusion_method: "weighted_sum"
+
+# [3.7] Score Calibration
+score_calibration:
+  method: "temperature_scaling"
+  temperature_scaling: {temperature: 1.5}
+
+# [3.8] Adaptive Filtering
+adaptive_filtering:
+  adaptive_thresholds:
+    by_complexity: {simple: 0.5, medium: 0.6, complex: 0.7}
+    by_query_type: {factual: 0.65, analytical: 0.6}
+
+  adaptive_top_k:
+    by_complexity: {simple: 5, medium: 10, complex: 15}
+
+# [3.9] Diversification & Deduplication
+diversification:
+  mmr: {lambda: 0.6, use_features: true}
+  source_coverage: {max_chunks_per_source: 3, min_unique_sources: 3}
+
+deduplication:
+  similarity_threshold: 0.90
+  near_duplicate_detection: {threshold: 0.85}
+
+# [3.10] Quality Validation & Metrics
+quality_validation:
+  coverage_check: {min_coverage: 0.7}
+  confidence_check: {min_avg_confidence: 0.7}
+  diversity_check: {min_unique_sources: 3}
+
+metrics:
+  compute_metrics: ["ndcg@5", "ndcg@10", "precision@5", "recall@10", "mrr"]
+  export: {format: "prometheus"}
+
+# =============================================================================
+# 📝 NOTES D'UTILISATION
+# =============================================================================
+#
+# DÉMARRAGE RAPIDE :
+#
+# 1. Mode Preset (Recommandé) :
+#    - Changez : step_03_config.mode = "preset"
+#    - Sélectionnez : step_03_config.preset = "minimal" | "balanced" | "maximal"
+#
+# 2. Mode Custom (Contrôle granulaire) :
+#    - Changez : step_03_config.mode = "custom"
+#    - Activez/désactivez : step_03_config.step_3_X
+#    - Configurez finement chaque feature
+#
+# EXEMPLES :
+#
+# # Exemple 1 : Quick Start (minimal)
+# step_03_config:
+#   mode: "preset"
+#   preset: "minimal"
+#
+# # Exemple 2 : Production (balanced)
+# step_03_config:
+#   mode: "preset"
+#   preset: "balanced"
+#
+# # Exemple 3 : Custom (activer seulement contextualization + cross-encoder)
+# step_03_config:
+#   mode: "custom"
+#   step_3_1_features: {enabled: false}
+#   step_3_2_context: {enabled: true, document_context: true, query_context: true}
+#   step_3_3_prererank: {enabled: true, single_method: true}
+#   step_3_4_cross_encoder: {enabled: true, contextualized_input: true}
+#   step_3_5_llm: {enabled: false}
+#   step_3_6_hybrid: {enabled: false}
+#   step_3_7_calibration: {enabled: true}
+#   step_3_8_filtering: {enabled: true}
+#   step_3_9_diversity: {enabled: true}
+#   step_3_10_validation: {enabled: true}
+#
+# CONTRÔLE GRANULAIRE AVANCÉ :
+#
+# # Activer LLM reranking UNIQUEMENT pour queries complexes
+# step_03_config:
+#   step_3_5_llm:
+#     enabled: true
+#     conditional_activation: true  # ← Active seulement si complexity > 0.7
+#
+# # Activer hybrid fusion avec seulement BGE + Cohere
+# step_03_config:
+#   step_3_6_hybrid:
+#     enabled: true
+#     reranker_bge: true
+#     reranker_cohere: true
+#     reranker_jina: false  # ← Désactiver jina
+#
+# # Activer MMR avec features
+# step_03_config:
+#   step_3_9_diversity:
+#     enabled: true
+#     mmr: true
+#     mmr_use_features: true  # ← Utilise features de 3.1
+#
+# OPTIMISATION PAR USE CASE :
+#
+# - FAQ/Support Client : preset="minimal" (330ms, +12%)
+# - Recherche Entreprise : preset="balanced" (360ms, +30%)
+# - Recherche Académique : preset="maximal" (800ms, +50%)
+# - E-commerce : custom (contextualization + adaptive filtering)
+#
+# =============================================================================

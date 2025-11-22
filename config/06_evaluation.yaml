@@ -1,0 +1,433 @@
+# =============================================================================
+# ÉTAPE 06 : ÉVALUATION DU PIPELINE RAG (RAG ULTIME 2025)
+# =============================================================================
+# Métriques et outils d'évaluation pour mesurer la qualité du pipeline RAG
+# de bout en bout et de chaque composant individuel.
+#
+# FRAMEWORKS D'ÉVALUATION :
+# - Ragas : métriques spécialisées RAG (faithfulness, relevancy, etc.)
+# - TruLens : observabilité complète, traces, feedback
+# - DeepEval : évaluation end-to-end avec LLM-as-a-judge
+#
+# MÉTRIQUES PAR ÉTAPE :
+# - Retrieval : recall@k, precision@k, nDCG@k, MRR
+# - Reranking : nDCG@10, precision@10, recall@10
+# - Génération : faithfulness, answer_relevancy, context_utilization
+#
+# OBJECTIFS :
+# - Mesurer qualité de chaque étape du pipeline
+# - Identifier goulots d'étranglement et axes d'amélioration
+# - Monitoring continu en production
+# - A/B testing pour optimisation
+# =============================================================================
+
+evaluation:
+  # Activer/désactiver l'évaluation
+  enabled: true
+
+  # ===========================================================================
+  # 6.1 DATASETS D'ÉVALUATION
+  # ===========================================================================
+  # Jeux de données de référence pour tester le pipeline.
+  #
+  # COMPOSANTS D'UN DATASET D'ÉVALUATION :
+  # - questions : liste de questions de test
+  # - ground_truth_answers : réponses attendues (référence humaine)
+  # - ground_truth_contexts : contextes pertinents connus
+  # - metadata : domaine, difficulté, type de question
+  # ===========================================================================
+  datasets:
+    # -------------------------------------------------------------------------
+    # Dataset principal
+    # -------------------------------------------------------------------------
+    main:
+      # Nom du dataset
+      name: "rag_eval_dataset"
+
+      # Chemin vers le fichier du dataset
+      # Format supporté : JSON, JSONL, CSV, Parquet
+      path: "data/evaluation/eval_dataset.jsonl"
+
+      # Format du fichier
+      format: "jsonl"
+
+      # Colonnes/clés du dataset
+      columns:
+        question: "question"
+        ground_truth_answer: "answer"
+        ground_truth_contexts: "contexts"  # Liste de contextes pertinents
+        metadata: "metadata"
+
+      # Nombre d'exemples à utiliser (-1 = tous)
+      num_samples: -1
+
+      # Stratification par difficulté/type (optionnel)
+      stratify_by: "metadata.difficulty"
+
+    # -------------------------------------------------------------------------
+    # Dataset de smoke test (petit, rapide)
+    # -------------------------------------------------------------------------
+    smoke_test:
+      name: "smoke_test_dataset"
+      path: "data/evaluation/smoke_test.jsonl"
+      format: "jsonl"
+      num_samples: 10
+
+  # ===========================================================================
+  # 6.2 MÉTRIQUES RAGAS
+  # ===========================================================================
+  # Ragas : framework de métriques spécialisées pour RAG.
+  #
+  # MÉTRIQUES PRINCIPALES :
+  # - faithfulness : la réponse est-elle fidèle au contexte fourni ?
+  # - answer_relevancy : la réponse répond-elle à la question ?
+  # - context_recall : les contexts ground-truth ont-ils été récupérés ?
+  # - context_precision : les contextes récupérés sont-ils pertinents ?
+  # - answer_similarity : similarité sémantique avec ground-truth
+  # - answer_correctness : exactitude factuelle
+  #
+  # SCORES : 0-1 (1 = parfait)
+  # OBJECTIF : >0.8 pour production
+  # ===========================================================================
+  ragas:
+    enabled: true
+
+    # LLM utilisé pour calculer les métriques Ragas
+    # Ragas utilise un LLM pour évaluer la qualité (LLM-as-a-judge)
+    llm:
+      provider: "openai"
+      model: "gpt-4o-mini"
+      temperature: 0.0
+
+    # Embeddings pour métriques de similarité sémantique
+    embeddings:
+      provider: "sentence_transformers"
+      model: "BAAI/bge-m3"
+
+    # -------------------------------------------------------------------------
+    # MÉTRIQUES À CALCULER
+    # -------------------------------------------------------------------------
+    metrics:
+      # --- MÉTRIQUES DE FIDÉLITÉ (Faithfulness) ---
+      # La réponse générée est-elle fidèle au contexte fourni ?
+      # Score : 0-1 (1 = totalement fidèle, pas d'hallucination)
+      faithfulness:
+        enabled: true
+        # Seuil minimum acceptable
+        threshold: 0.8
+
+      # --- MÉTRIQUES DE PERTINENCE RÉPONSE (Answer Relevancy) ---
+      # La réponse est-elle pertinente par rapport à la question ?
+      # Score : 0-1 (1 = parfaitement pertinent)
+      answer_relevancy:
+        enabled: true
+        threshold: 0.7
+
+      # --- MÉTRIQUES DE RECALL CONTEXTE (Context Recall) ---
+      # Les contexts ground-truth ont-ils été récupérés ?
+      # Score : 0-1 (1 = tous les contextes pertinents récupérés)
+      context_recall:
+        enabled: true
+        threshold: 0.8
+        # Nécessite ground_truth_contexts dans le dataset
+
+      # --- MÉTRIQUES DE PRECISION CONTEXTE (Context Precision) ---
+      # Les contextes récupérés sont-ils tous pertinents ?
+      # Score : 0-1 (1 = aucun contexte non-pertinent)
+      context_precision:
+        enabled: true
+        threshold: 0.7
+
+      # --- MÉTRIQUES DE SIMILARITÉ RÉPONSE (Answer Similarity) ---
+      # Similarité sémantique entre réponse générée et ground-truth
+      # Score : 0-1 (1 = sémantiquement identique)
+      answer_similarity:
+        enabled: true
+        threshold: 0.7
+        # Nécessite ground_truth_answer dans le dataset
+
+      # --- MÉTRIQUES D'EXACTITUDE (Answer Correctness) ---
+      # Exactitude factuelle de la réponse
+      # Combine similarité sémantique et factuelle
+      answer_correctness:
+        enabled: true
+        threshold: 0.75
+
+  # ===========================================================================
+  # 6.3 MÉTRIQUES TRULENS (Observabilité)
+  # ===========================================================================
+  # TruLens : observabilité complète du pipeline avec traces et feedback.
+  #
+  # FONCTIONNALITÉS :
+  # - Traces de chaque étape du pipeline
+  # - Feedback automatique sur qualité
+  # - Dashboard de monitoring
+  # - Comparaison de versions (A/B testing)
+  # ===========================================================================
+  trulens:
+    enabled: false  # Optionnel, nécessite setup serveur TruLens
+
+    # URL du serveur TruLens
+    server_url: "http://localhost:8501"
+
+    # Nom de l'application dans TruLens
+    app_name: "rag_inference_pipeline"
+
+    # Version de l'application (pour A/B testing)
+    app_version: "v1.0"
+
+    # -------------------------------------------------------------------------
+    # FEEDBACK FUNCTIONS
+    # -------------------------------------------------------------------------
+    # Fonctions de feedback automatique à calculer
+    feedback_functions:
+      - name: "relevance"
+        description: "Pertinence du contexte récupéré"
+        enabled: true
+
+      - name: "groundedness"
+        description: "Ancrage de la réponse dans le contexte"
+        enabled: true
+
+      - name: "coherence"
+        description: "Cohérence de la réponse"
+        enabled: true
+
+    # -------------------------------------------------------------------------
+    # LOGGING DES TRACES
+    # -------------------------------------------------------------------------
+    # Logger toutes les étapes du pipeline pour debugging
+    logging:
+      enabled: true
+      log_level: "INFO"
+
+  # ===========================================================================
+  # 6.4 MÉTRIQUES DE RETRIEVAL (par étape)
+  # ===========================================================================
+  # Métriques spécifiques pour évaluer la qualité du retrieval.
+  #
+  # MÉTRIQUES CLASSIQUES :
+  # - Recall@k : proportion de docs pertinents récupérés parmi top-k
+  # - Precision@k : proportion de docs pertinents parmi k récupérés
+  # - nDCG@k : normalized Discounted Cumulative Gain (ordre important)
+  # - MRR : Mean Reciprocal Rank (position du 1er doc pertinent)
+  # ===========================================================================
+  retrieval_metrics:
+    enabled: true
+
+    # Nécessite ground_truth_contexts dans le dataset
+    require_ground_truth: true
+
+    # -------------------------------------------------------------------------
+    # MÉTRIQUES PAR VALEUR DE K
+    # -------------------------------------------------------------------------
+    # Calculer métriques pour différentes valeurs de k
+    k_values: [5, 10, 20, 50, 100]
+
+    # -------------------------------------------------------------------------
+    # MÉTRIQUES À CALCULER
+    # -------------------------------------------------------------------------
+    metrics:
+      # Recall@k : combien de docs pertinents récupérés ?
+      recall:
+        enabled: true
+        thresholds:
+          recall@10: 0.8
+          recall@20: 0.9
+
+      # Precision@k : combien de docs récupérés sont pertinents ?
+      precision:
+        enabled: true
+        thresholds:
+          precision@10: 0.6
+
+      # nDCG@k : qualité du ranking (ordre important)
+      ndcg:
+        enabled: true
+        thresholds:
+          ndcg@10: 0.7
+          ndcg@20: 0.75
+
+      # MRR : position moyenne du 1er doc pertinent
+      mrr:
+        enabled: true
+        threshold: 0.5
+
+  # ===========================================================================
+  # 6.5 MÉTRIQUES DE RERANKING
+  # ===========================================================================
+  # Métriques pour évaluer l'amélioration apportée par le reranking.
+  # ===========================================================================
+  reranking_metrics:
+    enabled: true
+
+    # -------------------------------------------------------------------------
+    # MÉTRIQUES DE GAIN
+    # -------------------------------------------------------------------------
+    # Mesurer l'amélioration du reranking par rapport au retrieval initial
+    gain_metrics:
+      # Amélioration nDCG@10 après reranking
+      ndcg_gain:
+        enabled: true
+        # Gain minimum attendu (ex : +10% = 0.10)
+        min_expected_gain: 0.10
+
+      # Amélioration recall@10 après reranking
+      recall_gain:
+        enabled: true
+        min_expected_gain: 0.05
+
+  # ===========================================================================
+  # 6.6 MÉTRIQUES DE LATENCE & PERFORMANCE
+  # ===========================================================================
+  # Mesurer les performances en termes de vitesse et coût.
+  # ===========================================================================
+  performance_metrics:
+    enabled: true
+
+    # -------------------------------------------------------------------------
+    # LATENCE PAR ÉTAPE
+    # -------------------------------------------------------------------------
+    latency:
+      # Latence de chaque étape du pipeline
+      track_per_step: true
+
+      # Latence end-to-end (totale)
+      track_end_to_end: true
+
+      # Seuils maximaux acceptables (ms)
+      thresholds:
+        query_expansion: 100
+        retrieval: 300
+        reranking: 500
+        compression: 300
+        generation: 30000
+        end_to_end: 35000
+
+    # -------------------------------------------------------------------------
+    # COÛT (si APIs payantes)
+    # -------------------------------------------------------------------------
+    cost:
+      enabled: true
+      # Suivre coût par composant (OpenAI, Anthropic, etc.)
+      track_per_component: true
+      # Coût maximum acceptable par requête (USD)
+      max_cost_per_query: 0.10
+
+    # -------------------------------------------------------------------------
+    # THROUGHPUT
+    # -------------------------------------------------------------------------
+    throughput:
+      enabled: true
+      # Requêtes par seconde (QPS)
+      target_qps: 10
+
+  # ===========================================================================
+  # 6.7 REPORTING & ALERTING
+  # ===========================================================================
+  # Configuration du reporting et des alertes qualité.
+  # ===========================================================================
+  reporting:
+    # -------------------------------------------------------------------------
+    # RAPPORTS AUTOMATIQUES
+    # -------------------------------------------------------------------------
+    enabled: true
+
+    # Format des rapports : "html", "json", "markdown", "pdf"
+    formats: ["html", "json"]
+
+    # Répertoire de sortie des rapports
+    output_dir: "evaluation/reports"
+
+    # Inclure visualisations (graphiques, tableaux)
+    include_visualizations: true
+
+    # -------------------------------------------------------------------------
+    # ALERTES
+    # -------------------------------------------------------------------------
+    alerts:
+      enabled: true
+
+      # Déclencher alerte si métrique < seuil
+      trigger_on_threshold_breach: true
+
+      # Canaux de notification : "email", "slack", "webhook", "log"
+      channels: ["log"]
+
+      # Configuration Slack (si canal "slack" activé)
+      slack:
+        webhook_url: "${SLACK_WEBHOOK_URL}"
+
+      # Configuration email (si canal "email" activé)
+      email:
+        smtp_server: "smtp.gmail.com"
+        smtp_port: 587
+        from: "rag-alerts@example.com"
+        to: ["admin@example.com"]
+
+  # ===========================================================================
+  # 6.8 A/B TESTING & EXPERIMENTATION
+  # ===========================================================================
+  # Comparer différentes configurations du pipeline.
+  # ===========================================================================
+  ab_testing:
+    enabled: false
+
+    # -------------------------------------------------------------------------
+    # VARIANTES À COMPARER
+    # -------------------------------------------------------------------------
+    variants:
+      - name: "baseline"
+        description: "Configuration actuelle"
+        config_overrides: {}
+
+      - name: "variant_a"
+        description: "Reranking plus agressif"
+        config_overrides:
+          reranking.reranking_sota.min_score_threshold: 0.5
+
+      - name: "variant_b"
+        description: "Plus de chunks en génération"
+        config_overrides:
+          compression.mmr.final_top_k: 20
+
+    # -------------------------------------------------------------------------
+    # MÉTHODE DE COMPARAISON
+    # -------------------------------------------------------------------------
+    comparison:
+      # Métrique primaire pour comparaison
+      primary_metric: "ragas.faithfulness"
+
+      # Taille d'échantillon pour test statistique
+      sample_size: 100
+
+      # Niveau de confiance pour test statistique (0-1)
+      confidence_level: 0.95
+
+# =============================================================================
+# EXEMPLE D'UTILISATION
+# =============================================================================
+# Lancer l'évaluation :
+#
+# 1. Préparer dataset d'évaluation (eval_dataset.jsonl) :
+#    {
+#      "question": "Quelle est la politique de mot de passe ?",
+#      "answer": "La politique exige 12 caractères minimum...",
+#      "contexts": ["Le document IT stipule que..."]
+#    }
+#
+# 2. Exécuter pipeline sur chaque question du dataset
+#
+# 3. Calculer métriques :
+#    - Ragas : faithfulness, answer_relevancy, context_recall
+#    - Retrieval : recall@10, nDCG@10
+#    - Performance : latence, coût
+#
+# 4. Générer rapport :
+#    evaluation/reports/eval_report_2025-01-15.html
+#
+# 5. Analyser résultats :
+#    - Faithfulness : 0.85 ✅ (seuil 0.8)
+#    - Context recall : 0.75 ⚠️ (seuil 0.8) → améliorer retrieval
+#    - Latence end-to-end : 5200ms ✅ (seuil 35000ms)
+# =============================================================================

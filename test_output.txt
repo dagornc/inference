@@ -1,0 +1,48 @@
+============================= test session starts ==============================
+platform darwin -- Python 3.11.13, pytest-8.4.2, pluggy-1.6.0 -- /opt/homebrew/opt/python@3.11/bin/python3.11
+cachedir: .pytest_cache
+hypothesis profile 'default'
+rootdir: /Users/cdagorn/Projets_Python/inference
+configfile: pyproject.toml
+plugins: anyio-4.11.0, langsmith-0.4.37, hypothesis-6.145.0, Faker-37.11.0, cov-7.0.0
+collecting ... collected 1 item
+
+tests/test_step_01_embedding.py::test_query_decomposer DEBUG: TEST STARTED
+DEBUG: client initialized: True
+DEBUG: needs_decomposition=True
+FAILED
+
+=================================== FAILURES ===================================
+____________________________ test_query_decomposer _____________________________
+
+mock_openai = <MagicMock name='OpenAI' id='4453234128'>
+mock_config_v2 = {'adaptive_query_expansion': {'enabled': True, 'llm': {'model': 'gpt-3.5-turbo', 'provider': 'openai'}, 'prompts': {'h...istic', 'enabled': True, 'heuristic': {'rules': {'analytical': {'patterns': [...]}, 'factual': {'patterns': [...]}}}}}}
+
+    @patch("inference_project.steps.step_01_embedding.openai.OpenAI")
+    def test_query_decomposer(mock_openai, mock_config_v2):
+        """Test la décomposition de requête."""
+        print("DEBUG: TEST STARTED")
+        decomposer = QueryDecomposer(mock_config_v2)
+    
+        # Mock OpenAI response
+        mock_client = MagicMock()
+        mock_openai.return_value = mock_client
+        mock_client.chat.completions.create.return_value.choices[0].message.content = "Sub Q1\nSub Q2"
+    
+        # Force decomposition (bypass complexity check for test simplicity or mock it)
+        # Here we just test the decompose method directly if possible, or ensure trigger works
+        # The decompose method checks complexity internally.
+        # Let's mock complexity check or pass a complex query.
+    
+        sub_queries = decomposer.decompose("Question complexe et autre question")
+    
+        # If complexity trigger works, it should call LLM
+        # "et" is in detect_connectors
+    
+>       assert "Sub Q1" in sub_queries
+E       AssertionError: assert 'Sub Q1' in ['Question complexe et autre question']
+
+tests/test_step_01_embedding.py:135: AssertionError
+=========================== short test summary info ============================
+FAILED tests/test_step_01_embedding.py::test_query_decomposer - AssertionErro...
+============================== 1 failed in 0.54s ===============================

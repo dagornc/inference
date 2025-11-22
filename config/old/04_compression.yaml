@@ -1,0 +1,240 @@
+# =============================================================================
+# ÉTAPE 04 : COMPRESSION CONTEXTUELLE (RAG ULTIME 2025)
+# =============================================================================
+# Élimination des informations non-pertinentes tout en préservant le contexte
+# essentiel pour la génération.
+#
+# OBJECTIFS :
+# - Éliminer texte non-pertinent à la query
+# - Réduire distraction du LLM de génération
+# - Libérer espace dans context window (plus de chunks pertinents)
+# - Réduire coûts (moins de tokens envoyés au LLM)
+# - Améliorer qualité réponse (focus sur l'essentiel)
+#
+# TECHNIQUES :
+# 1. Contextual Compression : extraction passages pertinents
+# 2. MMR (Maximal Marginal Relevance) : équilibre relevance/diversité
+#
+# PERFORMANCE :
+# - Compression ratio : 40-60% du texte original
+# - Latence : 100-300ms selon méthode
+# - Préservation : contexte sémantique maintenu
+# =============================================================================
+
+compression:
+  # Activer/désactiver la compression contextuelle
+  enabled: true
+
+  # ===========================================================================
+  # 4.1 CONTEXTUAL COMPRESSION
+  # ===========================================================================
+  # Extraction intelligente des passages pertinents pour chaque chunk.
+  # Élimine le bruit tout en conservant le contexte nécessaire.
+  #
+  # OUTILS :
+  # - LangChain ContextualCompressionRetriever : wrapper avec base_compressor
+  # - LLMLingua : compression état de l'art via LLM
+  # - Recomp : selective compression
+  #
+  # MÉTHODES :
+  # - "extractive" : extraction passages exacts (rapide, préserve fidélité)
+  # - "abstractive" : reformulation condensée (plus lent, peut déformer)
+  # - "llm_based" : LLM pour compression intelligente (meilleur qualité)
+  # ===========================================================================
+  contextual_compression:
+    enabled: true
+
+    # Méthode de compression
+    # Options : "extractive", "abstractive", "llm_based"
+    # RECOMMANDÉ : "extractive" pour équilibre vitesse/qualité/coût
+    method: "extractive"
+
+    # ---------------------------------------------------------------------------
+    # CONFIGURATION EXTRACTIVE
+    # ---------------------------------------------------------------------------
+    extractive:
+      # Outil d'extraction
+      # Options : "langchain", "llmlingua", "recomp"
+      tool: "langchain"
+
+      # Modèle pour scoring des passages (si extractive intelligent)
+      # Peut réutiliser le modèle d'embedding ou un modèle dédié
+      scorer_model: "BAAI/bge-m3"
+
+      # Taille maximale d'un passage extrait (en tokens)
+      # Contrôle la granularité de l'extraction
+      max_passage_length: 200
+
+      # Nombre minimum de passages à extraire par chunk
+      # Assure qu'au moins quelques passages sont conservés
+      min_passages_per_chunk: 1
+
+      # Seuil de score de relevance pour extraction (0-1)
+      # Passages avec score < threshold sont exclus
+      relevance_threshold: 0.4
+
+    # ---------------------------------------------------------------------------
+    # CONFIGURATION ABSTRACTIVE (optionnel)
+    # ---------------------------------------------------------------------------
+    # Plus coûteux en compute, mais peut produire résumés plus cohérents
+    abstractive:
+      # LLM pour résumé abstractif
+      # Peut utiliser un modèle léger pour coût réduit
+      llm_provider: "ollama"
+      llm_model: "llama3"
+
+      # Longueur cible du résumé (en tokens)
+      target_length: 150
+
+      # Température pour génération (0-1)
+      # 0 = déterministe, 1 = créatif
+      temperature: 0.0
+
+      # Prompt de compression
+      prompt_template: |
+        Résume le passage suivant en conservant uniquement les informations
+        pertinentes pour répondre à la question : {query}
+
+        Passage : {context}
+
+        Résumé concis :
+
+    # ---------------------------------------------------------------------------
+    # CONFIGURATION LLM_BASED (optionnel - état de l'art)
+    # ---------------------------------------------------------------------------
+    # Utilise LLMLingua ou équivalent pour compression intelligente
+    llm_based:
+      # Outil : "llmlingua", "llmlingua2", "recomp"
+      tool: "llmlingua2"
+
+      # Taux de compression cible (0-1)
+      # 0.5 = conserver 50% des tokens
+      compression_rate: 0.5
+
+      # Préserver les entités nommées
+      preserve_named_entities: true
+
+      # Préserver la structure (phrases complètes)
+      preserve_structure: true
+
+  # ---------------------------------------------------------------------------
+  # RATIO DE COMPRESSION GLOBAL
+  # ---------------------------------------------------------------------------
+  # Contrôle la réduction totale de taille du contexte
+  compression_ratio:
+    # Ratio cible (0-1)
+    # 0.5 = conserver 50% du texte original, 0.4 = conserver 40%
+    target: 0.5
+
+    # Ratio minimum acceptable
+    # Seuil de sécurité pour éviter perte d'information critique
+    min: 0.3
+
+    # Ratio maximum acceptable
+    # Si compression insuffisante, peut indiquer contenu trop dense
+    max: 0.7
+
+  # ===========================================================================
+  # 4.2 MMR (MAXIMAL MARGINAL RELEVANCE)
+  # ===========================================================================
+  # Sélection finale des chunks en équilibrant relevance et diversité.
+  # Évite redondance tout en maintenant couverture complète.
+  #
+  # FORMULE MMR :
+  # score(d) = λ × relevance(q, d) - (1-λ) × max_similarity(d, selected_docs)
+  #
+  # PARAMÈTRE LAMBDA :
+  # - λ = 1.0 : relevance maximale, diversité ignorée
+  # - λ = 0.0 : diversité maximale, relevance ignorée
+  # - λ = 0.5-0.7 : équilibre recommandé
+  # ===========================================================================
+  mmr:
+    enabled: true
+
+    # Lambda : équilibre relevance/diversité (0-1)
+    # RECOMMANDÉ : 0.5-0.7
+    lambda: 0.6
+
+    # Nombre de chunks finaux après MMR
+    # Doit être cohérent avec postreranking.output_top_k (étape 03)
+    final_top_k: 15
+
+    # Méthode de calcul similarité entre documents
+    # Options : "cosine", "jaccard", "edit_distance"
+    similarity_method: "cosine"
+
+  # ===========================================================================
+  # OPTIMISATION CONTEXT WINDOW
+  # ===========================================================================
+  # Gestion intelligente du context window du LLM de génération
+  # ===========================================================================
+  context_window_optimization:
+    enabled: true
+
+    # Longueur maximale du contexte total (en tokens)
+    # Doit être < context_window du LLM de génération
+    # Ex : GPT-4-Turbo = 128k tokens, on réserve 100k pour le contexte
+    max_context_tokens: 100000
+
+    # Stratégie si dépassement du max_context_tokens
+    # Options : "truncate_tail", "truncate_head", "truncate_middle", "compress_more"
+    overflow_strategy: "truncate_tail"
+
+    # Compteur de tokens précis
+    # Options : "tiktoken" (OpenAI), "huggingface", "approximate"
+    token_counter: "tiktoken"
+
+    # Modèle de référence pour comptage tokens
+    # Important car tokenizers diffèrent selon modèles
+    tokenizer_model: "gpt-4"
+
+  # ===========================================================================
+  # PERFORMANCE & MONITORING
+  # ===========================================================================
+  performance:
+    # Latence maximale acceptable (ms)
+    max_latency_ms: 300
+
+    # Cache des résultats de compression pour requêtes répétées
+    cache_enabled: true
+
+    # TTL du cache (secondes)
+    cache_ttl: 3600
+
+  # Métriques à logger
+  metrics:
+    enabled: true
+    track:
+      - "compression_ratio_achieved"
+      - "latency_ms"
+      - "tokens_before_compression"
+      - "tokens_after_compression"
+      - "num_chunks_before"
+      - "num_chunks_after"
+
+# =============================================================================
+# EXEMPLE D'UTILISATION
+# =============================================================================
+# Pipeline de compression :
+#
+# Entrée (depuis post-reranking étape 03) :
+#   - 15 chunks
+#   - ~5000 tokens total
+#   - Certains chunks contiennent du bruit
+#
+# Étape 1 : Contextual Compression (extractive)
+#   - Extraction passages pertinents de chaque chunk
+#   - Réduction ~40-50% par chunk
+#   - Résultat : 15 chunks compressés, ~2500 tokens
+#
+# Étape 2 : MMR (λ=0.6)
+#   - Sélection finale avec équilibre relevance/diversité
+#   - Élimination redondances résiduelles
+#   - Résultat : 15 chunks diversifiés, ~2500 tokens
+#
+# Sortie (vers génération étape 05) :
+#   - 15 chunks ultra-pertinents et diversifiés
+#   - ~2500 tokens (compression 50% du contexte initial)
+#   - Context window optimisé pour le LLM
+#   - Latence totale : ~150ms
+# =============================================================================

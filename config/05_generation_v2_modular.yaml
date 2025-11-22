@@ -1,0 +1,735 @@
+# =============================================================================
+# ÉTAPE 05 v2 : GÉNÉRATION & PROMPT ENGINEERING - CONFIGURATION MODULAIRE
+# =============================================================================
+# Configuration avec activation/désactivation GRANULAIRE de chaque sous-étape.
+#
+# NOUVEAUTÉ v2.1 :
+# - Section MASTER CONFIG : activer/désactiver chaque étape facilement
+# - FLAGS GRANULAIRES : contrôle fin de chaque feature
+# - PRESETS : configurations prédéfinies (minimal, balanced, maximal, cost_optimized, high_assurance)
+# - Matrice de dépendances : validation automatique
+# =============================================================================
+
+# =============================================================================
+# ⚙️ MASTER CONFIGURATION - ACTIVATION/DÉSACTIVATION GRANULAIRE
+# =============================================================================
+
+step_05_config:
+  mode: "preset"  # "preset" ou "custom"
+  preset: "balanced"  # "minimal", "balanced", "maximal", "cost_optimized", "high_assurance"
+
+  # ---------------------------------------------------------------------------
+  # FLAGS D'ACTIVATION GRANULAIRE (si mode="custom")
+  # ---------------------------------------------------------------------------
+
+  # [5.1] Pre-Generation Analysis
+  step_5_1_analysis:
+    enabled: true                        # ⭐⭐⭐ OBLIGATOIRE
+    query_complexity: true               # Classification complexity
+    crag_evaluator: true                 # Évaluation qualité contexte
+    strategy_selection: true             # Adaptive RAG routing
+
+  # [5.2] Prompt Construction Adaptive
+  step_5_2_prompt:
+    enabled: true                        # ⭐⭐⭐ OBLIGATOIRE
+    adaptive_system_prompt: true         # Prompt selon query type
+    context_formatting: true             # Formatage docs
+    user_prompt_template: true           # Template standard
+
+  # [5.3] Advanced Prompting Techniques
+  step_5_3_advanced:
+    enabled: true                        # ⭐⭐ HIGH IMPACT
+    chain_of_thought: true               # CoT si complex
+    few_shot: false                      # Exemples (coûteux)
+    self_consistency: false              # Multiple sampling (lent)
+    extractive: false                    # Extraction exacte
+    contrastive: false                   # Multi-perspectives
+
+  # [5.4] Initial Generation
+  step_5_4_generation:
+    enabled: true                        # ⭐⭐⭐ OBLIGATOIRE
+    structured_output: false             # JSON Schema
+    streaming: false                     # Affichage progressif
+
+  # [5.5] Self-RAG (Adaptive Retrieval & Reflection)
+  step_5_5_self_rag:
+    enabled: true                        # ⭐⭐ HIGH IMPACT
+    conditional: true                    # Si query ambigüe uniquement
+    retrieve_on_demand: true             # Re-retrieval si nécessaire
+    reflection_tokens: true              # IsRelevant, IsSupported, IsUseful
+    regenerate_on_failure: true          # Retry si échec
+
+  # [5.6] Grounded Generation (GINGER)
+  step_5_6_ginger:
+    enabled: false                       # ⚠️ Expérimental (lent)
+    nugget_extraction: false             # Information nuggets
+    nugget_ranking: false
+    claim_attribution: false             # Attribution claim-level
+
+  # [5.7] Hallucination Detection
+  step_5_7_hallucination:
+    enabled: true                        # ⭐⭐⭐ CRITICAL
+    lettucedetect: true                  # Lightweight (20ms)
+    tlm: true                            # Deep check (50ms)
+    llm_judge: false                     # Fallback (500ms)
+    self_evaluation: true                # Inline (0ms)
+    ragas_faithfulness: true             # Score fidélité
+
+  # [5.8] Multi-Stage Validation
+  step_5_8_validation:
+    enabled: true                        # ⭐⭐⭐ CRITICAL
+    faithfulness: true                   # Fidélité contexte
+    attribution: true                    # Citations valides
+    consistency: false                   # Cohérence (lent)
+    completeness: true                   # Couverture question
+    relevance: false                     # Pertinence
+
+  # [5.9] Response Refinement (Iterative)
+  step_5_9_refinement:
+    enabled: false                       # ⚠️ Très lent (+2s)
+    self_critique: false
+    regenerate: false
+    validate_improvement: false
+
+  # [5.10] Post-Processing & Formatting
+  step_5_10_post:
+    enabled: true                        # ⭐⭐⭐ OBLIGATOIRE
+    output_formatting: true              # Markdown/JSON/HTML
+    sources_list: true                   # Liste sources
+    metadata: true                       # Métadonnées
+    cleanup: true                        # Nettoyage
+    audit_trail: false                   # Audit (high-stakes)
+
+# =============================================================================
+# 📦 PRESETS DE CONFIGURATION
+# =============================================================================
+
+presets:
+  # ---------------------------------------------------------------------------
+  # PRESET : minimal (Latence prioritaire)
+  # ---------------------------------------------------------------------------
+  minimal:
+    description: "Génération rapide - Latence prioritaire"
+    latency_target_ms: 2500
+    quality_gain: "+5%"
+    cost_multiplier: 1.0
+
+    enabled_steps:
+      step_5_1_analysis:
+        enabled: true
+        query_complexity: true           # Heuristic uniquement
+        crag_evaluator: false            # Désactivé (latence)
+        strategy_selection: true         # Simple routing
+
+      step_5_2_prompt:
+        enabled: true
+        adaptive_system_prompt: false    # Template fixe
+        context_formatting: true
+        user_prompt_template: true
+
+      step_5_3_advanced:
+        enabled: false                   # Tous désactivés
+        chain_of_thought: false
+        few_shot: false
+        self_consistency: false
+
+      step_5_4_generation:
+        enabled: true
+        structured_output: false
+        streaming: false
+
+      step_5_5_self_rag:
+        enabled: false                   # Désactivé (latence)
+
+      step_5_6_ginger:
+        enabled: false
+
+      step_5_7_hallucination:
+        enabled: true
+        lettucedetect: true              # Lightweight uniquement
+        tlm: false
+        llm_judge: false
+        self_evaluation: false
+        ragas_faithfulness: true
+
+      step_5_8_validation:
+        enabled: true
+        faithfulness: true
+        attribution: true                # Citations minimales
+        consistency: false
+        completeness: false
+        relevance: false
+
+      step_5_9_refinement:
+        enabled: false
+
+      step_5_10_post:
+        enabled: true
+        output_formatting: true
+        sources_list: true
+        metadata: false
+        cleanup: true
+        audit_trail: false
+
+  # ---------------------------------------------------------------------------
+  # PRESET : balanced ⭐ (Recommandé)
+  # ---------------------------------------------------------------------------
+  balanced:
+    description: "Équilibre qualité/coût/latence"
+    latency_target_ms: 3800
+    quality_gain: "+15%"
+    faithfulness_gain: "+10%"
+    hallucination_reduction: "-40%"
+    cost_multiplier: 1.25
+
+    enabled_steps:
+      step_5_1_analysis:
+        enabled: true                    # ✅ Analyse complète
+        query_complexity: true           # Heuristic + LLM
+        crag_evaluator: true             # ✅ CRAG evaluator
+        strategy_selection: true         # ✅ Adaptive routing
+
+      step_5_2_prompt:
+        enabled: true
+        adaptive_system_prompt: true     # ✅ Prompt adaptatif
+        context_formatting: true
+        user_prompt_template: true
+
+      step_5_3_advanced:
+        enabled: true
+        chain_of_thought: true           # ✅ CoT si complex
+        few_shot: false                  # Désactivé (coût)
+        self_consistency: false          # Désactivé (lent)
+        extractive: false
+        contrastive: false
+
+      step_5_4_generation:
+        enabled: true
+        structured_output: false         # Markdown text
+        streaming: false
+
+      step_5_5_self_rag:
+        enabled: true                    # ✅ Self-RAG conditionnel
+        conditional: true                # Si query ambigüe
+        retrieve_on_demand: true
+        reflection_tokens: true
+        regenerate_on_failure: true
+
+      step_5_6_ginger:
+        enabled: false                   # Désactivé (lent)
+
+      step_5_7_hallucination:
+        enabled: true                    # ✅ Detection 2 niveaux
+        lettucedetect: true              # ✅ Lightweight
+        tlm: true                        # ✅ Deep check
+        llm_judge: false                 # Désactivé (coût)
+        self_evaluation: true            # ✅ Inline
+        ragas_faithfulness: true         # ✅ RAGAS
+
+      step_5_8_validation:
+        enabled: true                    # ✅ Validation 3 stages
+        faithfulness: true               # ✅
+        attribution: true                # ✅
+        consistency: false
+        completeness: true               # ✅
+        relevance: false
+
+      step_5_9_refinement:
+        enabled: false                   # Désactivé (trop lent)
+
+      step_5_10_post:
+        enabled: true
+        output_formatting: true          # Markdown
+        sources_list: true
+        metadata: true                   # ✅ Métadonnées complètes
+        cleanup: true
+        audit_trail: false
+
+  # ---------------------------------------------------------------------------
+  # PRESET : maximal (Qualité maximale)
+  # ---------------------------------------------------------------------------
+  maximal:
+    description: "Qualité et fiabilité maximales"
+    latency_target_ms: 6500
+    quality_gain: "+30%"
+    faithfulness_gain: "+18%"
+    hallucination_reduction: "-61%"
+    attribution_gain: "+45%"
+    cost_multiplier: 1.80
+
+    enabled_steps:
+      step_5_1_analysis:
+        enabled: true
+        query_complexity: true           # LLM-based
+        crag_evaluator: true             # ✅ CRAG strict
+        strategy_selection: true         # ✅ Full adaptive
+
+      step_5_2_prompt:
+        enabled: true
+        adaptive_system_prompt: true     # ✅ Full adaptive
+        context_formatting: true
+        user_prompt_template: true
+
+      step_5_3_advanced:
+        enabled: true                    # ✅ Toutes techniques
+        chain_of_thought: true           # ✅ CoT toujours
+        few_shot: true                   # ✅ Few-shot
+        self_consistency: true           # ✅ Multiple sampling
+        extractive: false
+        contrastive: true                # ✅ Si analytical
+
+      step_5_4_generation:
+        enabled: true
+        structured_output: true          # ✅ JSON Schema
+        streaming: false
+
+      step_5_5_self_rag:
+        enabled: true                    # ✅ Self-RAG full
+        conditional: false               # Toujours activé
+        retrieve_on_demand: true
+        reflection_tokens: true
+        regenerate_on_failure: true
+
+      step_5_6_ginger:
+        enabled: true                    # ✅ GINGER activé
+        nugget_extraction: true          # ✅ Information nuggets
+        nugget_ranking: true
+        claim_attribution: true          # ✅ Claim-level citations
+
+      step_5_7_hallucination:
+        enabled: true                    # ✅ Detection 4 niveaux
+        lettucedetect: true
+        tlm: true
+        llm_judge: true                  # ✅ LLM-as-Judge
+        self_evaluation: true
+        ragas_faithfulness: true
+
+      step_5_8_validation:
+        enabled: true                    # ✅ Validation 5 stages
+        faithfulness: true
+        attribution: true
+        consistency: true                # ✅ Self-consistency
+        completeness: true
+        relevance: true                  # ✅ Relevance check
+
+      step_5_9_refinement:
+        enabled: true                    # ✅ Refinement 1-2 iterations
+        self_critique: true
+        regenerate: true
+        validate_improvement: true
+
+      step_5_10_post:
+        enabled: true
+        output_formatting: true          # Rich formatting
+        sources_list: true
+        metadata: true
+        cleanup: true
+        audit_trail: false
+
+  # ---------------------------------------------------------------------------
+  # PRESET : cost_optimized (Coûts minimaux)
+  # ---------------------------------------------------------------------------
+  cost_optimized:
+    description: "Minimiser coûts API"
+    latency_target_ms: 2800
+    quality_gain: "+8%"
+    cost_multiplier: 0.60
+
+    enabled_steps:
+      step_5_1_analysis:
+        enabled: true
+        query_complexity: true           # Heuristic uniquement (pas LLM)
+        crag_evaluator: false            # Désactivé (coût)
+        strategy_selection: true         # Simple routing
+
+      step_5_2_prompt:
+        enabled: true
+        adaptive_system_prompt: false    # Templates statiques
+        context_formatting: true
+        user_prompt_template: true
+
+      step_5_3_advanced:
+        enabled: false                   # Tous désactivés (coût)
+
+      step_5_4_generation:
+        enabled: true
+        structured_output: true          # ✅ Structured (pas de retry)
+        streaming: false
+
+      step_5_5_self_rag:
+        enabled: false                   # Désactivé (re-retrieval coûteux)
+
+      step_5_6_ginger:
+        enabled: false
+
+      step_5_7_hallucination:
+        enabled: true
+        lettucedetect: true              # ✅ Local model uniquement
+        tlm: false                       # Désactivé (API payante)
+        llm_judge: false                 # Désactivé (très coûteux)
+        self_evaluation: false
+        ragas_faithfulness: true         # ✅ RAGAS uniquement
+
+      step_5_8_validation:
+        enabled: true
+        faithfulness: true               # ✅ Faithfulness uniquement
+        attribution: true                # ✅ Citations basiques
+        consistency: false
+        completeness: false
+        relevance: false
+
+      step_5_9_refinement:
+        enabled: false
+
+      step_5_10_post:
+        enabled: true
+        output_formatting: true
+        sources_list: true
+        metadata: false                  # Métadonnées minimales
+        cleanup: true
+        audit_trail: false
+
+    # Configuration caching agressif
+    caching:
+      enabled: true
+      ttl: 86400  # 24h
+      query_similarity_threshold: 0.95
+
+  # ---------------------------------------------------------------------------
+  # PRESET : high_assurance (Médical, Légal, Critique)
+  # ---------------------------------------------------------------------------
+  high_assurance:
+    description: "Fiabilité maximale - Zero tolerance hallucinations"
+    latency_target_ms: 5500
+    quality_gain: "+25%"
+    hallucination_reduction: "-72%"
+    attribution_gain: "+50%"
+    refusal_rate_increase: "+200%"
+    cost_multiplier: 1.70
+
+    enabled_steps:
+      step_5_1_analysis:
+        enabled: true
+        query_complexity: true
+        crag_evaluator: true             # ✅ CRAG très strict
+        strategy_selection: true
+
+      step_5_2_prompt:
+        enabled: true
+        adaptive_system_prompt: true     # ✅ Conservative prompts
+        context_formatting: true
+        user_prompt_template: true
+
+      step_5_3_advanced:
+        enabled: true
+        chain_of_thought: true
+        few_shot: false
+        self_consistency: false
+        extractive: true                 # ✅ Préférer extraction
+        contrastive: false
+
+      step_5_4_generation:
+        enabled: true
+        structured_output: true          # ✅ Structured
+        streaming: false
+        temperature: 0.0                 # ✅ Déterministe strict
+
+      step_5_5_self_rag:
+        enabled: true                    # ✅ Self-RAG strict
+        conditional: false               # Toujours activé
+        retrieve_on_demand: true
+        reflection_tokens: true
+        regenerate_on_failure: true
+        strict_thresholds: true          # ✅ Thresholds stricts
+
+      step_5_6_ginger:
+        enabled: true                    # ✅ GINGER pour traçabilité
+        nugget_extraction: true
+        nugget_ranking: true
+        claim_attribution: true          # ✅ Claim-level attribution
+
+      step_5_7_hallucination:
+        enabled: true                    # ✅ Detection maximale
+        lettucedetect: true
+        tlm: true
+        llm_judge: true                  # ✅ LLM-as-Judge
+        self_evaluation: true
+        ragas_faithfulness: true
+        human_in_loop: true              # ✅ Human validation si doute
+
+      step_5_8_validation:
+        enabled: true                    # ✅ Validation stricte
+        faithfulness: true
+        attribution: true
+        consistency: true
+        completeness: true
+        relevance: true
+        strict_thresholds: true          # ✅ Thresholds élevés
+
+      step_5_9_refinement:
+        enabled: true                    # ✅ Si échec validation
+        conditional: true                # Uniquement si nécessaire
+        self_critique: true
+        regenerate: true
+
+      step_5_10_post:
+        enabled: true
+        output_formatting: true
+        sources_list: true
+        metadata: true
+        cleanup: true
+        audit_trail: true                # ✅ Audit trail complet
+
+    # Configuration refuse to answer
+    refuse_to_answer:
+      enabled: true
+      strict_mode: true
+      min_confidence: 0.9
+      min_faithfulness: 0.90
+      refuse_message: |
+        Je n'ai pas suffisamment d'informations fiables dans le contexte fourni
+        pour répondre à cette question avec le niveau de confiance requis.
+
+# =============================================================================
+# 📊 MATRICE DE DÉPENDANCES
+# =============================================================================
+
+dependencies:
+  step_5_1_analysis.query_complexity:
+    optional:
+      - "Phase 01: step_1_1_query_understanding"
+    warning: "Query complexity classification sera heuristic sans Phase 01"
+
+  step_5_1_analysis.crag_evaluator:
+    requires:
+      - "Phase 04: compressed context"
+      - "cross-encoder model"
+    warning: "CRAG nécessite cross-encoder (100MB)"
+
+  step_5_3_advanced.chain_of_thought:
+    requires:
+      - "step_5_1_analysis.query_complexity"
+    warning: "CoT plus efficace avec query complexity classification"
+
+  step_5_5_self_rag:
+    requires:
+      - "Phase 02: retrieval system"
+    warning: "Self-RAG nécessite accès au retrieval pour re-retrieval"
+
+  step_5_6_ginger:
+    requires:
+      - "LLM pour nugget extraction"
+    warning: "GINGER ajoute +200-500ms latence"
+
+  step_5_7_hallucination.tlm:
+    requires:
+      - "Cleanlab API key"
+    install: "pip install cleanlab"
+
+  step_5_7_hallucination.lettucedetect:
+    requires:
+      - "transformers library"
+    install: "pip install transformers"
+
+  step_5_8_validation.faithfulness:
+    requires:
+      - "RAGAS library"
+    install: "pip install ragas"
+
+# =============================================================================
+# 🔍 VALIDATION DE CONFIGURATION
+# =============================================================================
+
+validation:
+  enabled: true
+  on_missing_dependency: "warn"
+  on_invalid_config: "error"
+
+  checks:
+    - "check_dependencies"
+    - "check_library_availability"  # LettuceDetect, TLM, RAGAS
+    - "check_llm_provider"
+    - "check_api_keys"
+
+# =============================================================================
+# 🐛 MODE DEBUG
+# =============================================================================
+
+debug:
+  enabled: false
+  log_level: "DEBUG"
+  log_substeps: true
+
+  include_generation_stats: true
+
+  latency_alerts:
+    step_5_1: 200   # Pre-generation analysis
+    step_5_2: 50    # Prompt construction
+    step_5_3: 0     # Advanced prompting (inline)
+    step_5_4: 2000  # Initial generation
+    step_5_5: 1000  # Self-RAG
+    step_5_6: 500   # GINGER
+    step_5_7: 200   # Hallucination detection
+    step_5_8: 250   # Validation
+    step_5_9: 2000  # Refinement
+    step_5_10: 100  # Post-processing
+
+# =============================================================================
+# 💾 CONFIGURATION DÉTAILLÉE DES SOUS-ÉTAPES
+# =============================================================================
+
+# [5.1] Pre-Generation Analysis
+pre_generation_analysis:
+  query_complexity:
+    heuristic_factors:
+      query_length_weight: 0.2
+      num_entities_weight: 0.3
+      question_words_weight: 0.2
+      comparison_words_weight: 0.3
+
+  crag_evaluator:
+    model: "cross-encoder/ms-marco-MiniLM-L-6-v2"
+    thresholds:
+      correct: 0.7
+      ambiguous: 0.4
+
+# [5.2] Prompt Construction
+prompt_construction:
+  system_prompts:
+    factual: "concise_factual_template"
+    analytical: "step_by_step_analytical_template"
+    comparative: "structured_comparison_template"
+
+  context_formatting:
+    max_tokens_per_doc: 500
+    separator: "\n\n---\n\n"
+
+# [5.3] Advanced Prompting
+advanced_prompting:
+  chain_of_thought:
+    format: "explicit"
+    trigger_on_complexity: ["complex"]
+
+  self_consistency:
+    num_samples: 3
+    temperature: 0.5
+    aggregation: "voting"
+
+# [5.4] Initial Generation
+initial_generation:
+  llm:
+    provider: "ollama"
+    model: "llama3"
+    temperature: 0.0
+    max_tokens: 1000
+
+# [5.5] Self-RAG
+self_rag:
+  activation_triggers:
+    query_complexity: ["complex"]
+    crag_score: ["ambiguous"]
+
+  reflection:
+    is_relevant_threshold: 3
+    is_supported_threshold: "Partially"
+    is_useful_threshold: 3
+
+# [5.7] Hallucination Detection
+hallucination_detection:
+  lettucedetect:
+    model: "adaamko/lettucedetect"
+    threshold: 0.5
+
+  tlm:
+    threshold: 0.7
+
+  ragas_faithfulness:
+    min_score: 0.85
+
+# [5.8] Multi-Stage Validation
+multi_stage_validation:
+  faithfulness:
+    method: "ragas"
+    min_score: 0.85
+
+  attribution:
+    min_citations: 1
+    verify_citations_accurate: true
+
+  completeness:
+    method: "llm"
+    llm_model: "llama3"
+
+# [5.9] Response Refinement
+response_refinement:
+  max_iterations: 2
+  improvement_threshold: 0.05
+
+# [5.10] Post-Processing
+post_processing:
+  formatting:
+    output_format: "markdown"
+
+  sources_list:
+    append: true
+    format: "compact"
+
+# =============================================================================
+# 📝 NOTES D'UTILISATION
+# =============================================================================
+#
+# DÉMARRAGE RAPIDE :
+#
+# 1. Mode Preset (Recommandé) :
+#    step_05_config:
+#      mode: "preset"
+#      preset: "balanced"  # ⭐ Recommandé
+#
+# 2. Mode Custom (Contrôle granulaire) :
+#    step_05_config:
+#      mode: "custom"
+#      step_5_7_hallucination:
+#        enabled: true
+#        lettucedetect: true
+#        tlm: true
+#
+# CONTRÔLE GRANULAIRE AVANCÉ :
+#
+# # Activer Self-RAG toujours (pas conditionnel)
+# step_05_config:
+#   step_5_5_self_rag:
+#     enabled: true
+#     conditional: false  # Toujours activé
+#
+# # Activer GINGER (claim-level citations)
+# step_05_config:
+#   step_5_6_ginger:
+#     enabled: true
+#     nugget_extraction: true
+#     claim_attribution: true
+#
+# # Activer Response Refinement (high-stakes)
+# step_05_config:
+#   step_5_9_refinement:
+#     enabled: true
+#     max_iterations: 2
+#
+# OPTIMISATION PAR USE CASE :
+#
+# - FAQ/Support : preset="minimal" (2.5s, +5%, coût baseline)
+# - Entreprise : preset="balanced" (3.8s, +15%, +25% coût)
+# - Recherche/Analyse : preset="maximal" (6.5s, +30%, +80% coût)
+# - Cost-Sensitive : preset="cost_optimized" (2.8s, +8%, -40% coût)
+# - Médical/Légal : preset="high_assurance" (5.5s, +25%, -72% hallucinations)
+#
+# PRESETS COMPARAISON :
+#
+# | Preset | Latence | Qualité | Faithfulness | Hallucinations | Coût |
+# |--------|---------|---------|--------------|----------------|------|
+# | minimal | 2.5s | +5% | baseline | baseline | 1.0x |
+# | balanced ⭐ | 3.8s | +15% | +10% | -40% | 1.25x |
+# | maximal | 6.5s | +30% | +18% | -61% | 1.80x |
+# | cost_optimized | 2.8s | +8% | +5% | -20% | 0.60x |
+# | high_assurance | 5.5s | +25% | +15% | -72% | 1.70x |
+#
+# =============================================================================
