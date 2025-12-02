@@ -1,4 +1,0 @@
-# file: /Users/cdagorn/Projets_Python/inference/src/inference_project/steps/step_01_embedding.py
-# hypothesis_version: 6.145.0
-
-[0.0, 150, '01_embedding', 'OPENAI_API_KEY', '__main__', 'api_key', 'base_url', 'cache_enabled', 'config', 'content', 'enabled', 'hyde', 'llm', 'llm_providers', 'max_tokens', 'model', 'multi_query', 'num_variants', 'openai', 'prompts', 'provider', 'query_expansion', 'rewrite', 'role', 'step_back', 'techniques', 'temperature', 'user']

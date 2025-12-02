@@ -1,4 +1,0 @@
-# file: /Users/cdagorn/Projets_Python/inference/src/inference_project/steps/step_01_embedding_generation.py
-# hypothesis_version: 6.145.0
-
-['01_embedding_v2', '=', 'BAAI/bge-m3', '__main__', 'batch_size', 'config', 'cpu', 'dense', 'dense_dim', 'dense_embedding', 'dense_embeddings', 'device', 'embedding_generation', 'enabled', 'late_interaction', 'metadata', 'model', 'models_used', 'normalize', 'num_queries', 'queries', 'show_progress_bar', 'sparse', 'sparse_embedding', 'sparse_embeddings']
