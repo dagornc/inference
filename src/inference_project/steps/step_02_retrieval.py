@@ -54,9 +54,14 @@ class DenseRetriever:
             try:
                 import chromadb
 
-                # Mode persistent ou in-memory
+                # Mode persistent, http client ou in-memory
+                host = self.config.get("host", None)
+                port = self.config.get("port", None)
                 persist_directory = self.config.get("persist_directory", None)
-                if persist_directory:
+
+                if host and port:
+                    self.client = chromadb.HttpClient(host=host, port=int(port))
+                elif persist_directory:
                     self.client = chromadb.PersistentClient(path=persist_directory)
                 else:
                     self.client = chromadb.Client()

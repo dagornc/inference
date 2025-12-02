@@ -85,7 +85,7 @@ query_understanding:
     # Configuration LLM (très précis, lent)
     llm:
       provider: "ollama"
-      model: "llama3"
+      model: "qwen2.5:7B"
       temperature: 0.0
       prompt_template: |
         Classifie le type de la requête suivante parmi : factual, analytical, conversational, navigational, comparative.
@@ -253,7 +253,7 @@ query_preprocessing:
 
     # Similarité embedding (pour synonymes contextuels)
     embedding_similarity:
-      model: "BAAI/bge-m3"
+      model: "bge-m3:latest"
       threshold: 0.85  # Similarité cosine minimale
 
     # Nombre maximum de synonymes par mot
@@ -312,7 +312,7 @@ named_entity_recognition:
     # LLM configuration
     llm:
       provider: "ollama"
-      model: "llama3"
+      model: "qwen2.5:7B"
       prompt_template: |
         Extrais les entités nommées (personnes, organisations, lieux, dates, produits) de la requête suivante.
         Format : [TYPE: entité]
@@ -395,7 +395,7 @@ query_decomposition:
     # LLM-based (intelligent decomposition)
     llm:
       provider: "ollama"
-      model: "llama3"
+      model: "qwen2.5:7B"
       temperature: 0.0
       prompt_template: |
         Décompose la question complexe suivante en sous-questions simples et atomiques.
@@ -590,7 +590,7 @@ adaptive_query_expansion:
   # ---------------------------------------------------------------------------
   llm:
     provider: "ollama"
-    model: "llama3"
+    model: "qwen2.5:7B"
     temperature: 0.0
     max_tokens: 200
 
@@ -716,8 +716,8 @@ multi_representation_embedding:
   # ---------------------------------------------------------------------------
   dense:
     enabled: true
-    provider: "sentence_transformers"
-    model: "BAAI/bge-m3"
+    provider: "ollama"
+    model: "bge-m3:latest"
     embedding_dim: 1024
     quantization: "binary"
     normalize: true  # L2 normalization
@@ -852,7 +852,7 @@ query_quality_validation:
     # Embedding similarity
     embedding_similarity:
       # Comparer query originale avec variantes
-      model: "BAAI/bge-m3"
+      model: "bge-m3:latest"
 
       # Seuil minimum de similarité
       # Variantes trop différentes = incohérentes
@@ -865,7 +865,7 @@ query_quality_validation:
     # LLM coherence scoring
     llm:
       provider: "ollama"
-      model: "llama3"
+      model: "qwen2.5:7B"
       prompt_template: |
         Évalue la cohérence sémantique entre la question originale et sa variante.
         Score de 0 (totalement incohérent) à 10 (parfaitement cohérent).
@@ -958,7 +958,7 @@ ranking_feedback:
     # LLM pour reformulation
     llm:
       provider: "ollama"
-      model: "llama3"
+      model: "qwen2.5:7B"
       temperature: 0.1
       prompt_template: |
         Reformule la requête suivante en intégrant les termes importants extraits

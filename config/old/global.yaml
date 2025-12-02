@@ -41,15 +41,6 @@ llm_providers:
     access_method: "openai_compatible"
     base_url: "http://127.0.0.1:11434/v1" # URL par défaut pour Ollama local
     api_key: "ollama" # Clé API générique pour Ollama
-    models:
-      qwen2_5_7b:
-        name: "qwen2.5:7B"
-        context_window: 32768
-        cost_per_1m_tokens: 0.0
-      llama3:
-        name: "llama3"
-        context_window: 8192
-        cost_per_1m_tokens: 0.0
 
   # Configuration pour Hugging Face Inference API
   huggingface:

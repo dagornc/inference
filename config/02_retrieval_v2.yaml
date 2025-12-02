@@ -75,7 +75,7 @@ query_routing:
     # Configuration LLM (très précis, lent)
     llm:
       provider: "ollama"
-      model: "llama3"
+      model: "qwen2.5:7B"
       temperature: 0.0
       prompt_template: |
         Classifie le type de la requête suivante parmi : factual, analytical, conversational, navigational, comparative.
@@ -178,7 +178,7 @@ metadata_filtering:
     # Configuration LLM
     llm:
       provider: "ollama"
-      model: "llama3"
+      model: "qwen2.5:7B"
       temperature: 0.0
       prompt_template: |
         Extrait les filtres metadata de la requête suivante.
@@ -457,9 +457,17 @@ dense_retrieval:
   # MODÈLE
   # ---------------------------------------------------------------------------
   model:
-    provider: "sentence_transformers"
-    model_name: "BAAI/bge-m3"
+    provider: "ollama"
+    model_name: "bge-m3:latest"
     embedding_dim: 1024
+
+  # ---------------------------------------------------------------------------
+  # CONNECTION
+  # ---------------------------------------------------------------------------
+  # Connection to ChromaDB
+  host: "localhost"
+  port: 8000
+  collection_name: "compliance_docs"
 
   # ---------------------------------------------------------------------------
   # TOP-K
@@ -943,7 +951,7 @@ caching:
     method: "embedding"
 
     # Embedding model (si method=embedding)
-    embedding_model: "BAAI/bge-m3"
+    embedding_model: "bge-m3:latest"
 
   # ---------------------------------------------------------------------------
   # RESULT WARMING ✨ NEW
@@ -1276,7 +1284,7 @@ fallback:
 
       llm:
         provider: "ollama"
-        model: "llama3"
+        model: "qwen2.5:7B"
         temperature: 0.3
         prompt_template: |
           La requête suivante n'a pas donné de résultats satisfaisants.

@@ -7,12 +7,18 @@ services:
     ports:
       - "9099:9099"
     volumes:
-      - ./rag_pipeline.py:/app/pipelines/rag_pipeline.py
+      - .:/app/pipelines
       - ../src:/app/pipelines/src
       - ../config:/app/pipelines/config
+      # Mount data if needed, e.g. for local embeddings cache or similar
       - ../data:/app/pipelines/data
     environment:
-      - PYTHONPATH=/app/pipelines
+      - PIPELINES_URLS=http://0.0.0.0:9099
+      # ChromaDB Connection
+      - CHROMA_HOST=host.docker.internal
+      - CHROMA_PORT=8000
+      # OpenAI/LLM Keys (passed from host or .env)
+      - OPENAI_API_KEY=${OPENAI_API_KEY}
     extra_hosts:
       - "host.docker.internal:host-gateway"
     restart: always
